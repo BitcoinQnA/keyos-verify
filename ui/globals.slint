@@ -1,0 +1,49 @@
+// SPDX-FileCopyrightText: 2026 Foundation Devices, Inc. <hello@foundation.xyz>
+// SPDX-License-Identifier: MIT
+
+export struct SavedPublisher {
+    name: string,
+    email: string,
+    fingerprint: string,
+    details-available: bool,
+    key-available: bool,
+}
+
+export global VerifyState {
+    in-out property <bool> busy: false;
+    in-out property <[SavedPublisher]> trusted-keys;
+    in-out property <string> expected-draft: "";
+    in-out property <string> compare-artifact: "No file selected";
+    in-out property <string> compare-checksums: "No checksum file selected";
+    in-out property <string> release-artifact: "No release selected";
+    in-out property <string> release-manifest: "No manifest selected";
+    in-out property <string> release-signature: "No signature selected";
+    in-out property <string> release-key: "No public key selected";
+    in-out property <string> error: "";
+
+    // 0 success, 1 caution, 2 failed, 3 information.
+    in-out property <int> result-kind: 3;
+    in-out property <string> result-title: "";
+    in-out property <string> result-summary: "";
+    in-out property <string> result-detail: "";
+    in-out property <string> result-fingerprint: "";
+    in-out property <bool> can-trust: false;
+    in-out property <bool> can-compare: false;
+}
+
+export global Actions {
+    callback hash-file(bool) -> bool;
+    callback select-compare-checksums();
+    callback use-expected(string) -> bool;
+    callback compare-file() -> bool;
+    callback select-release-artifact();
+    callback select-release-manifest();
+    callback select-release-signature();
+    callback select-release-key-file() -> bool;
+    callback select-saved-release-key(string) -> bool;
+    callback verify-release() -> bool;
+    callback trust-current-key();
+    callback forget-trusted-keys();
+    callback forget-trusted-key(string) -> bool;
+    callback reset();
+}

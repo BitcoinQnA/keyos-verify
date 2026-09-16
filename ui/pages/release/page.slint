@@ -1,0 +1,63 @@
+// SPDX-FileCopyrightText: 2026 Foundation Devices, Inc. <hello@foundation.xyz>
+// SPDX-License-Identifier: MIT
+
+import { Theme, ControlSize, ButtonVariant } from "@ui/theme.slint";
+import { Button } from "@ui/button.slint";
+import { Navigate } from "../../gen/navigate.slint";
+import { Actions, VerifyState } from "../../globals.slint";
+import { PageBody, NavHeader, Subtext, ErrorText } from "../../components.slint";
+
+component PickRow inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    callback clicked();
+    height: 72px;
+
+    HorizontalLayout {
+        spacing: Theme.spacing-sm;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: 2px;
+            Text { text: root.label; color: Theme.palette-foreground; font-family: Theme.font-primary; font-size: 18px; font-weight: Theme.font-weight-semibold; }
+            Text { text: root.value; color: Theme.palette-muted; font-family: Theme.font-primary; font-size: 16px; overflow: elide; }
+        }
+        // TODO: localize
+        Button { width: 110px; text: "Choose"; size: ControlSize.sm; clicked => { root.clicked(); } }
+    }
+}
+
+export component ReleasePagePage inherits PageBody {
+    // TODO: localize
+    NavHeader { title: "Verify Release"; back => { Navigate.backward(); } }
+
+    // TODO: localize
+    Subtext { text: "Verify the signed manifest first, then the release checksum."; }
+
+    // TODO: localize
+    PickRow { label: "Release"; value: VerifyState.release-artifact; clicked => { Actions.select-release-artifact(); } }
+    // TODO: localize
+    PickRow { label: "Manifest"; value: VerifyState.release-manifest; clicked => { Actions.select-release-manifest(); } }
+    // TODO: localize
+    PickRow { label: "Signature"; value: VerifyState.release-signature; clicked => { Actions.select-release-signature(); } }
+    // TODO: localize
+    PickRow {
+        label: "Publisher Key";
+        value: VerifyState.release-key;
+        clicked => {
+            if (VerifyState.trusted-keys.length > 0) {
+                Navigate.key-picker-page({ });
+            } else {
+                Actions.select-release-key-file();
+            }
+        }
+    }
+
+    Rectangle { vertical-stretch: 1; }
+    if (VerifyState.error != ""): ErrorText { text: VerifyState.error; }
+
+    // TODO: localize
+    Button {
+        width: 100%; text: "Verify Release"; size: ControlSize.md; full-width: true;
+        clicked => { if (Actions.verify-release()) { Navigate.result-page({ }); } }
+    }
+}

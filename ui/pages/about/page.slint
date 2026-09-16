@@ -1,0 +1,30 @@
+// SPDX-FileCopyrightText: 2026 Foundation Devices, Inc. <hello@foundation.xyz>
+// SPDX-License-Identifier: MIT
+
+import { ControlSize } from "@ui/theme.slint";
+import { Button } from "@ui/button.slint";
+import { Card } from "@ui/card.slint";
+import { Navigate } from "../../gen/navigate.slint";
+import { PageBody, NavHeader, Subtext } from "../../components.slint";
+
+export component AboutPagePage inherits PageBody {
+    // TODO: localize
+    NavHeader { title: "About Verification"; back => { Navigate.backward(); } }
+    // TODO: localize
+    Subtext { text: "A matching checksum proves the bytes are unchanged. It does not identify who published them."; }
+    // TODO: localize
+    Card {
+        width: 100%; size: ControlSize.lg;
+        title: "Signed Releases";
+        body: "A valid signature ties the manifest to a publisher key. Compare its fingerprint with a value from a separate trusted source before trusting it.";
+    }
+    // TODO: localize
+    Card {
+        width: 100%; size: ControlSize.md;
+        title: "Modern Hashes Only";
+        body: "SHA-256 and SHA-512 only. Set the device date correctly for expiry checks. Offline verification cannot discover newly revoked keys.";
+    }
+    Rectangle { vertical-stretch: 1; }
+    // TODO: localize
+    Button { width: 100%; text: "Back"; size: ControlSize.md; full-width: true; clicked => { Navigate.backward(); } }
+}

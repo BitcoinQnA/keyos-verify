@@ -1,0 +1,36 @@
+import { ControlSize, ButtonVariant } from "@ui/theme.slint";
+import { Button } from "@ui/button.slint";
+import { Card } from "@ui/card.slint";
+import { Navigate } from "../../gen/navigate.slint";
+import { Actions, VerifyState } from "../../globals.slint";
+import { PageBody, NavHeader, Subtext, ErrorText } from "../../components.slint";
+
+export component HashPagePage inherits PageBody {
+    property <bool> sha512: false;
+    // TODO: localize
+    NavHeader { title: "Check a File"; back => { Navigate.backward(); } }
+    // TODO: localize
+    Subtext { text: "Choose a file to view its hash. You can compare it with a trusted checksum next."; }
+    // TODO: localize
+    Card {
+        width: 100%; size: ControlSize.md;
+        title: "Why Hash a File?";
+        body: "A hash is a fingerprint of a file. Compare it with a trusted checksum to check whether the file has changed or been corrupted.";
+    }
+    Rectangle { vertical-stretch: 1; }
+    if (VerifyState.error != ""): ErrorText { text: VerifyState.error; }
+    // TODO: localize
+    Subtext { text: "Hash algorithm"; }
+    HorizontalLayout {
+        spacing: 12px;
+        Button { text: "SHA-256"; size: ControlSize.sm;
+            variant: root.sha512 ? ButtonVariant.secondary : ButtonVariant.primary;
+            clicked => { root.sha512 = false; } }
+        Button { text: "SHA-512"; size: ControlSize.sm;
+            variant: root.sha512 ? ButtonVariant.primary : ButtonVariant.secondary;
+            clicked => { root.sha512 = true; } }
+    }
+    // TODO: localize
+    Button { width: 100%; text: "Choose File"; size: ControlSize.md; full-width: true;
+        clicked => { if (Actions.hash-file(root.sha512)) { Navigate.result-page({ }); } } }
+}

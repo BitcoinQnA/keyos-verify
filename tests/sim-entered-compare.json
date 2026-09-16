@@ -1,0 +1,7 @@
+[
+  {"tap":[240,746]}, {"wait":1000},
+  {"screenshot":"target/sim-entered-ready.png"},
+  {"tap":[240,746]}, {"wait":2000},
+  {"screenshot":"target/sim-entered-matches.png"},
+  {"tap":[240,746]}, {"wait":1000}
+]

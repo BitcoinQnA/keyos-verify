@@ -1,0 +1,57 @@
+import { ControlSize, ButtonVariant } from "@ui/theme.slint";
+import { Button } from "@ui/button.slint";
+import { Navigate } from "../../gen/navigate.slint";
+import { Actions, VerifyState } from "../../globals.slint";
+import { PublisherCard } from "../../publisher-card.slint";
+import { PageBody, NavHeader, Subtext, ErrorText } from "../../components.slint";
+
+export component KeysPagePage inherits PageBody {
+    property <bool> confirming: false;
+    // TODO: localize
+    NavHeader { title: "Saved Publisher Keys"; back => { Navigate.backward(); } }
+    // TODO: localize
+    Subtext { text: VerifyState.trusted-keys.length == 0 ? "No publisher keys have been trusted yet." : "Tap a publisher to view its key details."; }
+    Flickable {
+        vertical-stretch: 1;
+        viewport-width: self.width;
+        viewport-height: max(self.height, content.preferred-height);
+        content := VerticalLayout {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: self.preferred-height;
+            alignment: start;
+            spacing: 16px;
+            for publisher in VerifyState.trusted-keys: PublisherCard {
+                width: 100%;
+                publisher: publisher;
+                interactive: true;
+                show-fingerprint: false;
+                // TODO: localize
+                status: publisher.key-available ? "" : "Re-import required before reuse";
+                opened => {
+                    root.confirming = false;
+                    VerifyState.error = "";
+                    Navigate.publisher-page({
+                        name: publisher.name, email: publisher.email,
+                        fingerprint: publisher.fingerprint,
+                        details-available: publisher.details-available,
+                        key-available: publisher.key-available,
+                    }, { });
+                }
+            }
+        }
+    }
+    if (VerifyState.error != ""): ErrorText { text: VerifyState.error; }
+    // TODO: localize
+    if (root.confirming): Subtext { text: "This removes all saved trust decisions. Downloads and files are not changed."; }
+    // TODO: localize
+    if (VerifyState.trusted-keys.length > 0): Button {
+        width: 100%; text: root.confirming ? "Confirm Forget All" : "Forget All Saved Keys";
+        variant: ButtonVariant.danger; size: ControlSize.md; full-width: true;
+        clicked => {
+            if (root.confirming) { Actions.forget-trusted-keys(); root.confirming = false; }
+            else { root.confirming = true; }
+        }
+    }
+}

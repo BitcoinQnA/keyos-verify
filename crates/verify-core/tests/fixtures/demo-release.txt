@@ -1,0 +1,2 @@
+Verify SDK app test artifact.
+This is not a real software release and contains no secrets.

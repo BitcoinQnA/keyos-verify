@@ -1,0 +1,58 @@
+// SPDX-FileCopyrightText: 2026 Foundation Devices, Inc. <hello@foundation.xyz>
+// SPDX-License-Identifier: MIT
+
+import { ControlSize } from "@ui/theme.slint";
+import { Button } from "@ui/button.slint";
+import { Navigate } from "../../gen/navigate.slint";
+import { Actions, VerifyState } from "../../globals.slint";
+import { PublisherCard } from "../../publisher-card.slint";
+import { PageBody, NavHeader, Subtext, ErrorText } from "../../components.slint";
+
+export component KeyPickerPagePage inherits PageBody {
+    // TODO: localize
+    NavHeader { title: "Choose Publisher Key"; back => { Navigate.backward(); } }
+    // TODO: localize
+    Subtext { text: "Use a saved publisher or import a public key file."; }
+
+    Flickable {
+        vertical-stretch: 1;
+        viewport-width: self.width;
+        viewport-height: max(self.height, content.preferred-height);
+        content := VerticalLayout {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: self.preferred-height;
+            alignment: start;
+            spacing: 16px;
+            for publisher in VerifyState.trusted-keys: PublisherCard {
+                width: 100%;
+                publisher: publisher;
+                interactive: publisher.key-available;
+                show-fingerprint: false;
+                // TODO: localize
+                status: publisher.key-available ? "Tap to use this key" : "Re-import required before reuse";
+                opened => {
+                    if (Actions.select-saved-release-key(publisher.fingerprint)) {
+                        Navigate.backward();
+                    }
+                }
+            }
+        }
+    }
+
+    if (VerifyState.error != ""): ErrorText { text: VerifyState.error; }
+
+    // TODO: localize
+    Button {
+        width: 100%;
+        text: "Choose Key File";
+        size: ControlSize.md;
+        full-width: true;
+        clicked => {
+            if (Actions.select-release-key-file()) {
+                Navigate.backward();
+            }
+        }
+    }
+}

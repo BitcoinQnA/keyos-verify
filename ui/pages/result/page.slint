@@ -1,0 +1,82 @@
+// SPDX-FileCopyrightText: 2026 Foundation Devices, Inc. <hello@foundation.xyz>
+// SPDX-License-Identifier: MIT
+
+import { Theme, ControlSize, ButtonVariant } from "@ui/theme.slint";
+import { Button } from "@ui/button.slint";
+import { Card } from "@ui/card.slint";
+import { Navigate } from "../../gen/navigate.slint";
+import { Actions, VerifyState } from "../../globals.slint";
+import { PageBody, TitleText, Subtext } from "../../components.slint";
+
+export component ResultPagePage inherits PageBody {
+    HorizontalLayout {
+        alignment: center;
+        Rectangle {
+            width: 88px; height: 88px; border-radius: 44px;
+            background: VerifyState.result-kind == 0 ? #16a34a :
+                        VerifyState.result-kind == 1 ? #d97706 :
+                        VerifyState.result-kind == 2 ? #dc2626 : Theme.palette-primary;
+            // The SDK software renderer does not draw runtime Path elements.
+            Image {
+                x: 22px; y: 22px; width: 44px; height: 44px;
+                visible: VerifyState.result-kind == 0 || VerifyState.result-kind == 2;
+                source: VerifyState.result-kind == 0 ? @image-url("../../assets/check.png") : @image-url("../../assets/cross.png");
+                colorize: #ffffff;
+            }
+            if (VerifyState.result-kind != 0 && VerifyState.result-kind != 2): Text {
+                width: parent.width; height: parent.height;
+                text: "i";
+                color: #ffffff; font-family: Theme.font-primary; font-size: 44px;
+                font-weight: Theme.font-weight-bold; horizontal-alignment: center; vertical-alignment: center;
+            }
+        }
+    }
+
+    TitleText { text: VerifyState.result-title; }
+    Subtext { text: VerifyState.result-summary; }
+
+    Flickable {
+    vertical-stretch: 1;
+    viewport-width: self.width;
+    viewport-height: max(self.height, content.preferred-height);
+    content := VerticalLayout {
+    width: parent.width;
+    height: self.preferred-height;
+    alignment: start;
+    spacing: 12px;
+    Card {
+        width: 100%; size: ControlSize.lg;
+        // TODO: localize
+        title: "Details";
+        body: VerifyState.result-detail;
+    }
+
+    if (VerifyState.result-fingerprint != ""): VerticalLayout {
+        spacing: 6px;
+        // TODO: localize
+        Text { text: "Publisher fingerprint"; color: Theme.palette-muted; font-family: Theme.font-primary; font-size: 16px; horizontal-alignment: center; }
+        Text { text: VerifyState.result-fingerprint; color: Theme.palette-foreground; font-family: Theme.font-primary; font-size: 18px; horizontal-alignment: center; wrap: word-wrap; }
+    }
+    }
+    }
+
+    // TODO: localize
+    if (VerifyState.can-compare && !VerifyState.busy): Button {
+        width: 100%; text: "Compare with a Checksum"; size: ControlSize.md; full-width: true;
+        clicked => { Navigate.compare-page({ }); }
+    }
+
+    // TODO: localize
+    if (VerifyState.can-trust): Button {
+        width: 100%; text: "Trust This Publisher Key"; size: ControlSize.md; full-width: true;
+        variant: ButtonVariant.secondary;
+        clicked => { Navigate.trust-page({ }); }
+    }
+
+    // TODO: localize
+    Button {
+        width: 100%; text: VerifyState.busy ? "Cancel" : "Finish"; size: ControlSize.md; full-width: true;
+        variant: VerifyState.can-compare ? ButtonVariant.secondary : ButtonVariant.primary;
+        clicked => { Actions.reset(); Navigate.return-home(); }
+    }
+}

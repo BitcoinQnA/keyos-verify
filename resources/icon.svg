@@ -1,0 +1,5 @@
+<svg width="110" height="110" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- The launcher supplies the badge, so the glyph has no background. -->
+  <path d="M128 51L188 75V119C188 157 162 188 128 207C94 188 68 157 68 119V75L128 51Z" fill="#14B8A6"/>
+  <path d="M96 125L118 147L161 104" stroke="#F8FAFC" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

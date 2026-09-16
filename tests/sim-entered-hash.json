@@ -1,0 +1,11 @@
+[
+  {"tap":[240,746]}, {"wait":1000},
+  {"tap":[240,545]}, {"wait":1000},
+  {"tap":[240,313]}, {"wait":1500},
+  {"tap":[208,352]}, {"wait":1500},
+  {"tap":[238,552]}, {"wait":2000},
+  {"tap":[240,560]}, {"wait":1000},
+  {"tap":[240,219]}, {"wait":1000},
+  {"input_text":"16d974b2eb2a99738ca91666fdb77383f1e4c1a8aa76fdc3c948bff11acffd2e"},
+  {"wait":500}, {"screenshot":"target/sim-entered-hash.png"}
+]

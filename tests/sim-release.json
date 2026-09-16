@@ -1,0 +1,18 @@
+[
+  {"tap":[240,617]}, {"wait":400},
+  {"tap":[400,205]}, {"wait":500},
+  {"tap":[208,352]}, {"wait":350},
+  {"tap":[238,552]}, {"wait":500},
+  {"tap":[400,289]}, {"wait":500},
+  {"tap":[208,352]}, {"wait":350},
+  {"tap":[238,485]}, {"wait":500},
+  {"tap":[400,373]}, {"wait":500},
+  {"tap":[208,352]}, {"wait":350},
+  {"tap":[238,620]}, {"wait":500},
+  {"tap":[400,457]}, {"wait":500},
+  {"tap":[208,352]}, {"wait":350},
+  {"tap":[238,687]}, {"wait":500},
+  {"screenshot":"target/sim-release-ready.png"},
+  {"tap":[240,746]}, {"wait":2000},
+  {"screenshot":"target/sim-release-verified.png"}
+]

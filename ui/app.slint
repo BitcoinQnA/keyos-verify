@@ -1,0 +1,23 @@
+// SPDX-FileCopyrightText: 2026 Foundation Devices, Inc. <hello@foundation.xyz>
+// SPDX-License-Identifier: MIT
+
+import {
+    Theme,
+    UISize,
+    Images,
+} from "@ui/theme.slint";
+import { Router } from "gen/router.slint";
+import { VerifyState, Actions, SavedPublisher } from "globals.slint";
+
+export { Theme, Images }
+export * from "gen/exports.slint";
+export { VerifyState, Actions, SavedPublisher }
+
+export component AppWindow inherits Window {
+    title: "Verify";
+    preferred-width: UISize.screen-width;
+    preferred-height: UISize.screen-height;
+    background: Theme.palette-background;
+
+    Router { }
+}

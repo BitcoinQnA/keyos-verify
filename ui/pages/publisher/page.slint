@@ -1,0 +1,97 @@
+import { Theme, Images, ControlSize, ButtonVariant } from "@ui/theme.slint";
+import { Button } from "@ui/button.slint";
+import { Dialog, DialogVariant } from "@ui/dialog.slint";
+import { Navigate } from "../../gen/navigate.slint";
+import { Actions, VerifyState } from "../../globals.slint";
+import { PublisherCard } from "../../publisher-card.slint";
+import { PageBody, NavHeader, Subtext, TitleText, ErrorText } from "../../components.slint";
+import { PublisherPageProps } from "props.slint";
+
+export component PublisherPagePage inherits Rectangle {
+    in property <PublisherPageProps> props;
+    in-out property <bool> confirming: false;
+    PageBody {
+        // TODO: localize
+        NavHeader { title: "Publisher Key"; back => { Navigate.backward(); } }
+        // TODO: localize
+        Subtext { text: "Names and emails come from the key. Trust is tied to the full fingerprint."; }
+        Flickable {
+            vertical-stretch: 1;
+            viewport-width: self.width;
+            viewport-height: max(self.height, card.preferred-height);
+            card := PublisherCard {
+                x: 0px; y: 0px; width: parent.width;
+                publisher: {
+                    name: root.props.name, email: root.props.email,
+                    fingerprint: root.props.fingerprint,
+                    details-available: root.props.details-available,
+                    key-available: root.props.key-available,
+                };
+                // TODO: localize
+                status: root.props.key-available ? "Public key available for release verification" : "Re-import this publisher key once to make it reusable";
+            }
+        }
+        // TODO: localize
+        Button {
+            width: 100%; text: "Delete Key";
+            size: ControlSize.md; full-width: true;
+            variant: ButtonVariant.danger;
+            clicked => { VerifyState.error = ""; root.confirming = true; }
+        }
+    }
+    if (root.confirming): Rectangle {
+        width: parent.width; height: parent.height;
+        TouchArea { }
+        FocusScope { init => { self.focus(); } }
+        Dialog {
+            width: parent.width; height: parent.height;
+            variant: DialogVariant.danger;
+            dismissable: false;
+            HorizontalLayout {
+                alignment: center;
+                Image {
+                    width: 48px; height: 48px;
+                    source: Images.icon("circle-alert", 48px);
+                    colorize: Theme.palette-danger;
+                }
+            }
+            // TODO: localize
+            TitleText { text: "Delete Publisher Key?"; }
+            Text {
+                // TODO: localize
+                text: root.props.name != "" ? root.props.name : "Publisher name unavailable";
+                font-family: Theme.font-primary;
+                font-size: 20px; font-weight: Theme.font-weight-semibold;
+                color: Theme.palette-foreground;
+                horizontal-alignment: center;
+                overflow: elide;
+            }
+            Text {
+                text: root.props.fingerprint;
+                font-family: Theme.font-primary; font-size: 18px;
+                color: Theme.palette-foreground;
+                horizontal-alignment: center; wrap: word-wrap;
+            }
+            // TODO: localize
+            Subtext { text: "This removes saved trust for this key. Other publishers and files are unchanged. You can trust it again later."; }
+            if (VerifyState.error != ""): ErrorText { text: VerifyState.error; }
+            // TODO: localize
+            Button {
+                text: "Cancel"; size: ControlSize.md; full-width: true;
+                variant: ButtonVariant.secondary;
+                clicked => { VerifyState.error = ""; root.confirming = false; }
+            }
+            // TODO: localize
+            Button {
+                text: "Delete Key"; size: ControlSize.md; full-width: true;
+                variant: ButtonVariant.danger;
+                clicked => {
+                    if (Actions.forget-trusted-key(root.props.fingerprint)) {
+                        root.confirming = false;
+                        Navigate.backward();
+                    }
+                }
+            }
+        }
+    }
+}

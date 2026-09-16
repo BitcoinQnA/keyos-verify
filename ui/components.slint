@@ -1,0 +1,103 @@
+// SPDX-FileCopyrightText: 2026 Foundation Devices, Inc. <hello@foundation.xyz>
+// SPDX-License-Identifier: MIT
+
+import { Theme, UISize, Images } from "@ui/theme.slint";
+
+export component PageBody inherits Rectangle {
+    background: Theme.palette-background;
+
+    VerticalLayout {
+        width: parent.width;
+        height: parent.height;
+        padding-left: Theme.spacing-xl;
+        padding-right: Theme.spacing-xl;
+        padding-top: Theme.spacing-lg + UISize.control-center-status-bar-height;
+        padding-bottom: Theme.spacing-xl;
+        spacing: Theme.spacing-md;
+        @children
+    }
+}
+
+export component TitleText inherits Text {
+    color: Theme.palette-foreground;
+    font-family: Theme.font-primary;
+    font-size: 24px;
+    font-weight: Theme.font-weight-bold;
+    horizontal-alignment: center;
+    wrap: word-wrap;
+}
+
+export component Subtext inherits Text {
+    color: Theme.palette-muted;
+    font-family: Theme.font-primary;
+    font-size: 18px;
+    font-weight: Theme.font-weight-medium;
+    horizontal-alignment: center;
+    wrap: word-wrap;
+}
+
+export component NavHeader inherits Rectangle {
+    in property <string> title;
+    callback back();
+    property <image> back-icon: Images.icon("chevron-left", 28px);
+    height: 44px;
+
+    HorizontalLayout {
+        width: parent.width;
+        height: parent.height;
+
+        Rectangle {
+            width: 56px;
+            height: parent.height;
+
+            if root.back-icon.width > 0: Image {
+                width: 28px;
+                height: 28px;
+                y: (parent.height - self.height) / 2;
+                source: root.back-icon;
+                colorize: area.pressed ? Theme.palette-muted : Theme.palette-foreground;
+            }
+
+            if root.back-icon.width == 0: Text {
+                width: 28px;
+                height: parent.height;
+                text: "\u{2039}";
+                color: area.pressed ? Theme.palette-muted : Theme.palette-foreground;
+                font-family: Theme.font-primary;
+                font-size: 34px;
+                horizontal-alignment: left;
+                vertical-alignment: center;
+            }
+
+            area := TouchArea {
+                x: -8px;
+                y: -4px;
+                width: parent.width + 16px;
+                height: parent.height + 8px;
+                clicked => { root.back(); }
+            }
+        }
+
+        Text {
+            horizontal-stretch: 1;
+            text: root.title;
+            color: Theme.palette-foreground;
+            font-family: Theme.font-primary;
+            font-size: 22px;
+            font-weight: Theme.font-weight-semibold;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+
+        Rectangle { width: 56px; }
+    }
+}
+
+export component ErrorText inherits Text {
+    color: Theme.palette-danger;
+    font-family: Theme.font-primary;
+    font-size: 17px;
+    horizontal-alignment: center;
+    wrap: word-wrap;
+}

@@ -1,0 +1,10 @@
+[
+  {"tap":[240,674]}, {"wait":700},
+  {"screenshot":"target/sim-publisher-trust.png"},
+  {"tap":[240,746]}, {"wait":1200},
+  {"screenshot":"target/sim-publisher-trusted.png"},
+  {"tap":[240,746]}, {"wait":700},
+  {"tap":[432,78]}, {"wait":600},
+  {"tap":[275,145]}, {"wait":700},
+  {"screenshot":"target/sim-publisher-card.png"}
+]

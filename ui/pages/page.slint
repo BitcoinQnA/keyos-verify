@@ -1,0 +1,135 @@
+// SPDX-FileCopyrightText: 2026 Foundation Devices, Inc. <hello@foundation.xyz>
+// SPDX-License-Identifier: MIT
+
+import { Theme, UISize, Images, ControlSize, ButtonVariant } from "@ui/theme.slint";
+import { Button } from "@ui/button.slint";
+import { Card } from "@ui/card.slint";
+import { Menu } from "@ui/menu.slint";
+import { MenuItem } from "@ui/menu_item.slint";
+import { Navigate } from "../gen/navigate.slint";
+import { Actions, VerifyState } from "../globals.slint";
+import { PageBody, TitleText, Subtext, ErrorText } from "../components.slint";
+
+export component MainPagePage inherits Rectangle {
+    in-out property <bool> menu-open: false;
+    background: Theme.palette-background;
+
+    PageBody {
+        width: parent.width;
+        height: parent.height;
+
+        header := Rectangle {
+            height: 44px;
+            // TODO: localize
+            TitleText { x: 56px; width: parent.width - 112px; height: parent.height; text: "Verify"; vertical-alignment: center; }
+            Rectangle {
+                x: parent.width - self.width;
+                width: 48px; height: 44px;
+                border-radius: 12px;
+                background: more-touch.pressed || root.menu-open ? Theme.palette-secondary : transparent;
+                for index in 3: Rectangle {
+                    x: 21px; y: 9px + index * 10px;
+                    width: 5px; height: 5px; border-radius: 3px;
+                    background: Theme.palette-foreground;
+                }
+                // TODO: localize
+                accessible-label: "More options";
+                accessible-role: button;
+                more-touch := TouchArea {
+                    x: -8px;
+                    y: -8px;
+                    width: parent.width + 16px;
+                    height: parent.height + 16px;
+                    clicked => { root.menu-open = !root.menu-open; }
+                }
+            }
+        }
+
+        // TODO: localize
+        Subtext { text: "Check file integrity and verify publisher signatures."; }
+
+        // TODO: localize
+        Card {
+            width: 100%;
+            size: ControlSize.md;
+            title: "Offline by design";
+            body: "Verification happens on your device. No internet connection needed.";
+        }
+
+        Rectangle { vertical-stretch: 1; }
+
+        // TODO: localize
+        if (VerifyState.error != ""): ErrorText { text: VerifyState.error; }
+
+        // TODO: localize
+        Button {
+            width: 100%;
+            text: "Check a File";
+            size: ControlSize.md;
+            full-width: true;
+            clicked => {
+                Actions.reset(); Navigate.hash-page({ });
+            }
+        }
+
+        // TODO: localize
+        Button {
+            width: 100%;
+            text: "Verify a Signed Release";
+            variant: ButtonVariant.secondary;
+            size: ControlSize.md;
+            full-width: true;
+            clicked => { Actions.reset(); Navigate.release-page({ }); }
+        }
+    }
+
+    if root.menu-open: menu-layer := Rectangle {
+        width: parent.width;
+        height: parent.height;
+        background: #00000080;
+
+        dismiss-touch := TouchArea {
+            width: parent.width;
+            height: parent.height;
+            clicked => { root.menu-open = false; }
+        }
+
+        menu-panel := Rectangle {
+            x: parent.width - Theme.spacing-xl - self.width;
+            y: Theme.spacing-lg + UISize.control-center-status-bar-height + 52px;
+            width: 328px;
+            height: menu.preferred-height;
+            background: Theme.is-dark ? Theme.palette-secondary : Theme.palette-surface;
+            border-radius: Theme.radius-md;
+            drop-shadow-blur: 16px;
+            drop-shadow-color: #00000040;
+            drop-shadow-offset-y: 4px;
+
+            // Block taps inside the panel from dismissing it between menu rows.
+            panel-touch := TouchArea {
+                width: parent.width;
+                height: parent.height;
+            }
+
+            menu := Menu {
+                width: parent.width;
+                size: ControlSize.sm;
+                menu-background: Theme.is-dark ? Theme.palette-secondary : Theme.palette-surface;
+                menu-border-color: Theme.palette-border;
+
+                // TODO: localize
+                MenuItem {
+                    label: "Saved Publisher Keys"; size: ControlSize.md;
+                    end-icon: Images.icon("lock", Theme.icon-size-md);
+                    clicked => { root.menu-open = false; Navigate.keys-page({ }); }
+                }
+                // TODO: localize
+                MenuItem {
+                    label: "About Verification"; size: ControlSize.md; divider: false;
+                    end-icon: Images.icon("info", Theme.icon-size-md);
+                    clicked => { root.menu-open = false; Navigate.about-page({ }); }
+                }
+            }
+        }
+    }
+}

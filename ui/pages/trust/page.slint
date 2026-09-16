@@ -1,0 +1,37 @@
+import { Theme, ControlSize } from "@ui/theme.slint";
+import { Button } from "@ui/button.slint";
+import { Card } from "@ui/card.slint";
+import { Navigate } from "../../gen/navigate.slint";
+import { Actions, VerifyState } from "../../globals.slint";
+import { PageBody, NavHeader, Subtext } from "../../components.slint";
+
+export component TrustPagePage inherits PageBody {
+    // TODO: localize
+    NavHeader { title: "Trust Publisher"; back => { Navigate.backward(); } }
+    // TODO: localize
+    Subtext { text: "Compare every group below with a fingerprint from a separate, trusted source."; }
+
+    Rectangle { vertical-stretch: 1; }
+    Text {
+        text: VerifyState.result-fingerprint;
+        color: Theme.palette-foreground;
+        font-family: Theme.font-primary;
+        font-size: 22px;
+        font-weight: Theme.font-weight-semibold;
+        horizontal-alignment: center;
+        wrap: word-wrap;
+    }
+    Rectangle { vertical-stretch: 1; }
+
+    // TODO: localize
+    Card {
+        width: 100%; size: ControlSize.md;
+        title: "Trust Is Your Decision";
+        body: "A valid signature alone does not prove who owns this key. Verify saves its fingerprint, name and email on this device.";
+    }
+    // TODO: localize
+    Button {
+        width: 100%; text: "I Compared the Fingerprint"; size: ControlSize.md; full-width: true;
+        clicked => { Actions.trust-current-key(); Navigate.backward(); }
+    }
+}

@@ -1,0 +1,16 @@
+[
+  {"tap":[220,220]}, {"wait":700},
+  {"screenshot":"target/sim-publisher-details.png"},
+  {"tap":[240,754]}, {"wait":700},
+  {"screenshot":"target/sim-publisher-remove-confirm.png"},
+  {"tap":[52,78]}, {"wait":700},
+  {"screenshot":"target/sim-publisher-modal-blocks-back.png"},
+  {"tap":[240,509]}, {"wait":700},
+  {"screenshot":"target/sim-publisher-remove-cancel.png"},
+  {"tap":[52,78]}, {"wait":700},
+  {"screenshot":"target/sim-publisher-preserved-after-cancel.png"},
+  {"tap":[220,220]}, {"wait":700},
+  {"tap":[240,754]}, {"wait":700},
+  {"tap":[240,585]}, {"wait":1200},
+  {"screenshot":"target/sim-publisher-removed.png"}
+]

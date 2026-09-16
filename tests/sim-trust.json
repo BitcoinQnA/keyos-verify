@@ -1,0 +1,9 @@
+[
+  {"tap":[240,678]}, {"wait":500},
+  {"screenshot":"target/sim-trust-confirmation.png"},
+  {"tap":[240,746]}, {"wait":1000},
+  {"screenshot":"target/sim-trusted-result.png"},
+  {"tap":[240,746]}, {"wait":500},
+  {"tap":[240,686]}, {"wait":500},
+  {"screenshot":"target/sim-saved-keys.png"}
+]

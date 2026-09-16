@@ -1,0 +1,30 @@
+import { ControlSize } from "@ui/theme.slint";
+import { Button } from "@ui/button.slint";
+import { Input } from "@ui/input.slint";
+import { Navigate } from "../../gen/navigate.slint";
+import { Actions, VerifyState } from "../../globals.slint";
+import { PageBody, NavHeader, Subtext, ErrorText } from "../../components.slint";
+
+export component ExpectedPagePage inherits PageBody {
+    function use-hash() {
+        focus-sink.focus();
+        if (Actions.use-expected(VerifyState.expected-draft)) { Navigate.backward(); }
+    }
+    // TODO: localize
+    NavHeader { title: "Expected Hash"; back => { Navigate.backward(); } }
+    // TODO: localize
+    Subtext { text: "Enter 64 hex characters for SHA-256 or 128 for SHA-512. Spaces are allowed. A checksum alone does not identify the publisher."; }
+    // TODO: localize
+    Input {
+        width: 100%; value <=> VerifyState.expected-draft; placeholder: "Expected hexadecimal hash";
+        submitted(text) => { root.use-hash(); }
+    }
+    if (VerifyState.error != ""): ErrorText { text: VerifyState.error; }
+    Rectangle { vertical-stretch: 1; }
+    // TODO: localize
+    Button {
+        width: 100%; text: "Use This Hash"; size: ControlSize.md; full-width: true;
+        clicked => { root.use-hash(); }
+    }
+    focus-sink := FocusScope { height: 0px; }
+}

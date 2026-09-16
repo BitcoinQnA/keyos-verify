@@ -1,0 +1,87 @@
+import { Theme } from "@ui/theme.slint";
+import { VerifyState, SavedPublisher } from "../ui/globals.slint";
+import { MainPagePage } from "../ui/pages/page.slint";
+import { ComparePagePage } from "../ui/pages/compare/page.slint";
+import { ReleasePagePage } from "../ui/pages/release/page.slint";
+import { ResultPagePage } from "../ui/pages/result/page.slint";
+import { AboutPagePage } from "../ui/pages/about/page.slint";
+import { TrustPagePage } from "../ui/pages/trust/page.slint";
+import { KeysPagePage } from "../ui/pages/keys/page.slint";
+import { HashPagePage } from "../ui/pages/hash/page.slint";
+import { ExpectedPagePage } from "../ui/pages/expected/page.slint";
+import { PublisherPagePage } from "../ui/pages/publisher/page.slint";
+import { KeyPickerPagePage } from "../ui/pages/key-picker/page.slint";
+import "../.foundation-sdk/current/resources/fonts/Montserrat-Regular.ttf";
+import "../.foundation-sdk/current/resources/fonts/Montserrat-Medium.ttf";
+
+export component Preview inherits Window {
+    width: 480px;
+    height: root.window-height * 1px;
+    in property <int> window-height: 760;
+    in property <int> page: 0;
+    in property <bool> dark: false;
+    in property <int> result-kind: 1;
+    in property <string> result-title: "Signature and Hash Match";
+    in property <string> result-summary: "Check this fingerprint using a separate trusted source before trusting the publisher.";
+    in property <string> result-detail: "Sparrow-2.5.4-aarch64.dmg\n\nCraig Raw <craig@sparrowwallet.com>";
+    in property <string> result-fingerprint: "D4D0 D320 2FC0 6849 A257\nB38D E946 1833 4C67 4B40";
+    in property <bool> can-trust: true;
+    in property <bool> can-compare: false;
+    in property <string> error: "";
+    in property <bool> confirming-delete: false;
+    in property <bool> menu-open: false;
+    in property <[SavedPublisher]> saved-publishers: [{
+        name: "Craig Raw", email: "craig@sparrowwallet.com",
+        fingerprint: "D4D0 D320 2FC0 6849 A257\nB38D E946 1833 4C67 4B40",
+        details-available: true, key-available: true
+    }];
+
+    function apply-state() {
+        Theme.is-dark = root.dark;
+        Theme.palette-background = root.dark ? #231f20 : #ffffff;
+        Theme.palette-surface = root.dark ? #231f20 : #ffffff;
+        Theme.palette-foreground = root.dark ? #ffffff : #231f20;
+        Theme.palette-muted = root.dark ? #b7b6b7 : #959394;
+        Theme.palette-border = root.dark ? #5a595a : #d5d4d5;
+        VerifyState.error = root.error;
+        VerifyState.result-kind = root.result-kind;
+        VerifyState.result-title = root.result-title;
+        VerifyState.result-summary = root.result-summary;
+        VerifyState.result-detail = root.result-detail;
+        VerifyState.result-fingerprint = root.result-fingerprint;
+        VerifyState.can-trust = root.can-trust;
+        VerifyState.can-compare = root.can-compare;
+        VerifyState.trusted-keys = root.saved-publishers;
+    }
+
+    init => { root.apply-state(); }
+    changed dark => { root.apply-state(); }
+    changed result-kind => { root.apply-state(); }
+    changed result-title => { root.apply-state(); }
+    changed result-summary => { root.apply-state(); }
+    changed result-detail => { root.apply-state(); }
+    changed result-fingerprint => { root.apply-state(); }
+    changed can-trust => { root.apply-state(); }
+    changed can-compare => { root.apply-state(); }
+    changed error => { root.apply-state(); }
+    changed saved-publishers => { root.apply-state(); }
+    if root.page == 0: MainPagePage { menu-open: root.menu-open; }
+    if root.page == 1: ComparePagePage { }
+    if root.page == 2: ReleasePagePage { }
+    if root.page == 3: ResultPagePage { }
+    if root.page == 4: AboutPagePage { }
+    if root.page == 5: TrustPagePage { }
+    if root.page == 6: KeysPagePage { }
+    if root.page == 7: HashPagePage { }
+    if root.page == 8: ExpectedPagePage { }
+    if root.page == 9: PublisherPagePage {
+        props: {
+            name: root.saved-publishers[0].name, email: root.saved-publishers[0].email,
+            fingerprint: root.saved-publishers[0].fingerprint,
+            details-available: root.saved-publishers[0].details-available,
+            key-available: root.saved-publishers[0].key-available,
+        };
+        confirming: root.confirming-delete;
+    }
+    if root.page == 10: KeyPickerPagePage { }
+}

@@ -1,0 +1,9 @@
+[
+  {"tap":[240,674]}, {"wait":800},
+  {"tap":[240,746]}, {"wait":1500},
+  {"tap":[208,352]}, {"wait":1500},
+  {"tap":[238,552]}, {"wait":2000},
+  {"screenshot":"target/sim-unified-hash.png"},
+  {"tap":[240,674]}, {"wait":800},
+  {"screenshot":"target/sim-unified-compare.png"}
+]

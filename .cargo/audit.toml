@@ -1,0 +1,3 @@
+[advisories]
+# Public-key verification only; no RSA private-key operations. See SECURITY.md.
+ignore = ["RUSTSEC-2023-0071"]

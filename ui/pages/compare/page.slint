@@ -1,0 +1,64 @@
+// SPDX-FileCopyrightText: 2026 Foundation Devices, Inc. <hello@foundation.xyz>
+// SPDX-License-Identifier: MIT
+
+import { ControlSize, ButtonVariant } from "@ui/theme.slint";
+import { Button } from "@ui/button.slint";
+import { Card } from "@ui/card.slint";
+import { Navigate } from "../../gen/navigate.slint";
+import { Actions, VerifyState } from "../../globals.slint";
+import { PageBody, NavHeader, Subtext, ErrorText } from "../../components.slint";
+
+export component ComparePagePage inherits PageBody {
+    // TODO: localize
+    NavHeader { title: "Compare Checksum"; back => { Navigate.backward(); } }
+
+    // TODO: localize
+    Subtext { text: "Add an expected checksum for this file. The matching hash algorithm is selected automatically."; }
+
+    Flickable {
+    vertical-stretch: 1;
+    viewport-width: self.width;
+    viewport-height: max(self.height, content.preferred-height);
+    content := VerticalLayout {
+    width: parent.width;
+    height: self.preferred-height;
+    alignment: start;
+    spacing: 12px;
+    // TODO: localize
+    Card { width: 100%; size: ControlSize.sm; title: "Selected File"; body: VerifyState.compare-artifact; }
+
+    // TODO: localize
+    Card { width: 100%; size: ControlSize.sm; title: "Expected Checksum"; body: VerifyState.compare-checksums; }
+    }
+    }
+    if (VerifyState.error != ""): ErrorText { text: VerifyState.error; }
+
+    VerticalLayout {
+    height: self.preferred-height;
+    vertical-stretch: 0;
+    spacing: 12px;
+    // TODO: localize
+    Button {
+        width: 100%; text: "Choose Checksum File"; size: ControlSize.md; full-width: true;
+        height: self.preferred-height;
+        vertical-stretch: 0;
+        variant: ButtonVariant.secondary;
+        clicked => { Actions.select-compare-checksums(); }
+    }
+
+    // TODO: localize
+    Button {
+        width: 100%; text: "Enter Checksum"; size: ControlSize.md; full-width: true;
+        height: self.preferred-height;
+        vertical-stretch: 0;
+        variant: ButtonVariant.secondary;
+        clicked => { Navigate.expected-page({ }); }
+    }
+
+    // TODO: localize
+    Button {
+        width: 100%; text: "Compare"; size: ControlSize.md; full-width: true;
+        clicked => { if (Actions.compare-file()) { Navigate.result-page({ }); } }
+    }
+    }
+}

@@ -1,0 +1,89 @@
+import { Theme, Images } from "@ui/theme.slint";
+import { SavedPublisher } from "globals.slint";
+
+export component PublisherCard inherits Rectangle {
+    in property <SavedPublisher> publisher;
+    in property <bool> interactive: false;
+    in property <bool> show-fingerprint: true;
+    in property <string> status: "";
+    callback opened();
+    preferred-height: content.preferred-height;
+    height: self.preferred-height;
+    background: Theme.palette-surface;
+    border-color: Theme.palette-border;
+    border-width: 1px;
+    border-radius: 24px;
+    content := VerticalLayout {
+        width: parent.width;
+        padding: 20px;
+        padding-right: root.interactive ? 48px : 20px;
+        spacing: 10px;
+        Text {
+            // TODO: localize
+            text: root.publisher.name != "" ? root.publisher.name : "Publisher name unavailable";
+            color: Theme.palette-foreground;
+            font-family: Theme.font-primary;
+            font-size: 22px;
+            font-weight: Theme.font-weight-semibold;
+            wrap: word-wrap;
+        }
+        if (root.publisher.details-available): Text {
+            // TODO: localize
+            text: root.publisher.email != "" ? root.publisher.email : "No email in key";
+            color: Theme.palette-muted;
+            font-family: Theme.font-primary;
+            font-size: 18px;
+            wrap: word-wrap;
+        }
+        if (root.show-fingerprint): Text {
+            text: root.publisher.fingerprint;
+            color: Theme.palette-foreground;
+            font-family: Theme.font-primary;
+            font-size: 18px;
+            wrap: word-wrap;
+        }
+        if (!root.publisher.details-available): Text {
+            // TODO: localize
+            text: "Verify a signed release again to add this publisher's details.";
+            color: Theme.palette-muted;
+            font-family: Theme.font-primary;
+            font-size: 16px;
+            wrap: word-wrap;
+        }
+        if (root.status != ""): Text {
+            text: root.status;
+            color: Theme.palette-muted;
+            font-family: Theme.font-primary;
+            font-size: 16px;
+            wrap: word-wrap;
+        }
+    }
+    if (root.interactive): Image {
+        x: parent.width - 36px; y: (parent.height - self.height) / 2;
+        width: 24px; height: 24px;
+        source: Images.icon("chevron-right", 24px);
+        colorize: Theme.palette-muted;
+    }
+    if (root.interactive): Rectangle {
+        width: parent.width; height: parent.height;
+        accessible-role: button;
+        accessible-label: root.publisher.name + " " + root.publisher.email;
+        accessible-action-default => { root.opened(); }
+        border-radius: 24px;
+        background: touch.pressed ? Theme.palette-secondary.with-alpha(0.2) : transparent;
+        touch := TouchArea {
+            width: parent.width; height: parent.height;
+            clicked => { root.opened(); }
+        }
+        FocusScope {
+            width: 0px; height: 0px;
+            key-pressed(event) => {
+                if (event.text == " " || event.text == "\n") {
+                    root.opened();
+                    return accept;
+                }
+                return reject;
+            }
+        }
+    }
+}

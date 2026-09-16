@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2026 Foundation Devices, Inc. <hello@foundation.xyz>
+# SPDX-License-Identifier: MIT
+
+# Foundation application configuration
+app-name = "keyos-verify"
+friendly-app-name = "Verify"
+launcher-app-name = "Verify"
+description = "Verify file hashes and publisher signatures offline"
+icon = "resources/icon.svg"
+theme = "resources/theme.json"
+app-id = "0x082345924de3d118781cf199b2476ae5"
+min-keyos-version = "1.4.0-beta3"
+signing-identity = "qna-dev"
+
+[publisher]
+name = "QnA"
+contact-email = "qna@foundation.xyz"
+support-url = "https://linear.app/foundation-devices/issue/SUP-1273"
+
+[permissions]
+template = ["gui-app"]
+"os/crypto" = ["ShaSetContext", "ShaUpdate", "ShaGetContext", "ShaDrop"]
+"os/fs" = [
+    "GetUsbReadAccess",
+    "GetUserReadAccess",
+    "GetAirlockReadAccess",
+    "SeekFile",
+    "WriteFile",
+    "TruncateFile",
+    "Flush",
+    "Rename",
+    "Remove",
+]

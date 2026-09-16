@@ -1,0 +1,15 @@
+[
+  {"tap":[240,746]}, {"wait":400},
+  {"screenshot":"target/sim-forget-confirmation.png"},
+  {"tap":[240,746]}, {"wait":600},
+  {"screenshot":"target/sim-forgotten.png"},
+  {"tap":[52,77]}, {"wait":300},
+  {"tap":[240,474]}, {"wait":400},
+  {"tap":[240,746]}, {"wait":500},
+  {"tap":[208,352]}, {"wait":350},
+  {"tap":[238,552]}, {"wait":1000},
+  {"screenshot":"target/sim-sha512.png"},
+  {"swipe":[240,590,240,310]}, {"wait":500},
+  {"screenshot":"target/sim-sha512-scrolled.png"},
+  {"tap":[240,746]}, {"wait":400}
+]

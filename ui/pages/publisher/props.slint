@@ -1,0 +1,8 @@
+@rust-attr(route(path = "/publisher?{fingerprint}&{name}&{email}&{details-available}&{key-available}"))
+export struct PublisherPageProps {
+    fingerprint: string,
+    name: string,
+    email: string,
+    details-available: bool,
+    key-available: bool,
+}
