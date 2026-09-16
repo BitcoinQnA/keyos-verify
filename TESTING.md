@@ -14,6 +14,7 @@ All in-app icons now use local 4x raster masters generated from editable SVG sou
 - The bundled hosted simulator still panics in the SDK kernel after enough repeated file-picker processes. Each test session used one simulator at a time; completed app results and all host tests remained valid.
 - Selected release screenshots are tracked under `screenshots/`; the larger test evidence set remains under ignored `target/release-screenshots/`.
 - Installer SHA-256: `2afa56e352fa567281bb47e9cb45174ad14f499bec1cd5755aee9cfa21a920a5`.
+- Installer ZIP SHA-256: `0f6185d515f2fe3a29c0f4793769269c60d2c8abffd027fafdd4e3c5ac593c2e`.
 - App hash: `dd3af4e59af7d4fa9540df2a06e6dd8f0a81d22a80ad5c0dad24818aadc34b4b`.
 - Test archive SHA-256: `c8e364c4b92c11a79587d97b0f2a380f3145a43fd38355a0f3a6544ca9eaa28c`.
 - Public QnA certificate SHA-256: `0730387e98a92baf12f10e74ce31437661b7536085ca45d52f097d80dc715da1`.

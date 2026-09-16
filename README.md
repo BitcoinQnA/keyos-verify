@@ -38,19 +38,20 @@ Verify has no network access and cannot access the Passport master seed or Seed 
 Verify 1.0.0 requires KeyOS 1.4.0-beta3 or newer.
 
 1. Download these files from the [latest GitHub release](https://github.com/BitcoinQnA/keyos-verify/releases/latest):
-   - `verify-1.0.0-beta3.app`
+   - `verify-1.0.0-beta3-app.zip`
    - `qna-publisher.crt`
    - `SHA256SUMS.txt`
-2. Confirm the downloads match `SHA256SUMS.txt`.
-3. Independently compare the QnA publisher fingerprint before allowing the certificate:
+2. Extract `verify-1.0.0-beta3-app.zip` once to obtain `verify-1.0.0-beta3.app`. Keep the `.app` file itself packed.
+3. Confirm the ZIP, extracted app, and certificate match `SHA256SUMS.txt`.
+4. Independently compare the QnA publisher fingerprint before allowing the certificate:
 
    ```text
    1fc590a13d547db696e0d3cd12d07a4d7b119e957b301aedd1299b10a1852971
    ```
 
-4. Copy the certificate and app package to an SD card, USB drive, or Airlock. Do not unpack the `.app` file.
-5. On Passport, open **Settings > Apps**, allow the QnA publisher certificate, and carefully compare the fingerprint shown on the device.
-6. Choose **Install App**, select `verify-1.0.0-beta3.app`, and follow the on-device confirmation.
+5. Copy the certificate and app package to an SD card, USB drive, or Airlock. Do not unpack the `.app` file.
+6. On Passport, open **Settings > Apps**, allow the QnA publisher certificate, and carefully compare the fingerprint shown on the device.
+7. Choose **Install App**, select `verify-1.0.0-beta3.app`, and follow the on-device confirmation.
 
 Allowing a publisher permits apps signed by that certificate to run. The displayed QnA name and email are self-asserted; the full fingerprint is the identity to compare.
 
