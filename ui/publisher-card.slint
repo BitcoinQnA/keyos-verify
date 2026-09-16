@@ -1,4 +1,4 @@
-import { Theme, Images } from "@ui/theme.slint";
+import { Theme } from "@ui/theme.slint";
 import { SavedPublisher } from "globals.slint";
 
 export component PublisherCard inherits Rectangle {
@@ -61,7 +61,7 @@ export component PublisherCard inherits Rectangle {
     if (root.interactive): Image {
         x: parent.width - 36px; y: (parent.height - self.height) / 2;
         width: 24px; height: 24px;
-        source: Images.icon("chevron-right", 24px);
+        source: @image-url("assets/chevron-right.png");
         colorize: Theme.palette-muted;
     }
     if (root.interactive): Rectangle {

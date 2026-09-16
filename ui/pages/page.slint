@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Foundation Devices, Inc. <hello@foundation.xyz>
 // SPDX-License-Identifier: MIT
 
-import { Theme, UISize, Images, ControlSize, ButtonVariant } from "@ui/theme.slint";
+import { Theme, UISize, ControlSize, ButtonVariant } from "@ui/theme.slint";
 import { Button } from "@ui/button.slint";
 import { Card } from "@ui/card.slint";
 import { Menu } from "@ui/menu.slint";
@@ -120,13 +120,13 @@ export component MainPagePage inherits Rectangle {
                 // TODO: localize
                 MenuItem {
                     label: "Saved Publisher Keys"; size: ControlSize.md;
-                    end-icon: Images.icon("lock", Theme.icon-size-md);
+                    end-icon: @image-url("../assets/lock.png");
                     clicked => { root.menu-open = false; Navigate.keys-page({ }); }
                 }
                 // TODO: localize
                 MenuItem {
                     label: "About Verification"; size: ControlSize.md; divider: false;
-                    end-icon: Images.icon("info", Theme.icon-size-md);
+                    end-icon: @image-url("../assets/info.png");
                     clicked => { root.menu-open = false; Navigate.about-page({ }); }
                 }
             }

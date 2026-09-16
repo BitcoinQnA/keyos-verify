@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+import struct
 import unittest
 
 
@@ -43,6 +44,35 @@ class MainMenuStyleTests(unittest.TestCase):
             self.source,
         )
         self.assertRegex(self.source, r"drop-shadow-blur\s*:\s*16px\s*;")
+
+
+class IconStyleTests(unittest.TestCase):
+    def setUp(self):
+        self.root = Path(__file__).resolve().parents[1]
+
+    def test_ui_icons_do_not_upscale_sdk_glyphs(self):
+        for path in (self.root / "ui").rglob("*.slint"):
+            with self.subTest(source=str(path.relative_to(self.root))):
+                self.assertNotIn("Images.icon(", path.read_text())
+
+    def test_raster_icon_masters_are_at_least_four_times_render_size(self):
+        expected = {
+            "check.png": (176, 176),
+            "chevron-left.png": (112, 112),
+            "chevron-right.png": (96, 96),
+            "cross.png": (176, 176),
+            "delete-warning.png": (192, 192),
+            "info.png": (96, 96),
+            "lock.png": (96, 96),
+        }
+        assets = self.root / "ui" / "assets"
+        for name, minimum in expected.items():
+            with self.subTest(icon=name):
+                data = (assets / name).read_bytes()
+                self.assertEqual(data[:8], b"\x89PNG\r\n\x1a\n")
+                width, height = struct.unpack(">II", data[16:24])
+                self.assertGreaterEqual(width, minimum[0])
+                self.assertGreaterEqual(height, minimum[1])
 
 
 if __name__ == "__main__":

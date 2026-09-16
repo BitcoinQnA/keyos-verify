@@ -1,45 +1,109 @@
-# Verify
+# Verify for Passport Prime
 
-An internal proof of concept built with the public Foundation SDK, not a native KeyOS app. Verify checks file hashes and detached OpenPGP signatures offline on Passport Prime. It is not independently security-audited.
+Verify checks file hashes and OpenPGP release signatures entirely on Passport Prime. It is designed for confirming that a downloaded file matches the bytes a publisher signed before you install, copy, or use it.
 
-## Install and try
+Verify is an open-source, third-party Foundation SDK app published by QnA. It is not Foundation-signed and has not received an independent security audit.
 
-Use `dist/verify-0.1.9-beta3.app` on KeyOS 1.4.0-beta3 or newer. Copy it to the SD/USB drive or Airlock, then install through Settings > Apps. The device must trust the existing `qna-dev` developer certificate; no Foundation signature is required. Do not unpack the `.app` file.
+![Verify home screen](screenshots/verify-home.png)
 
-The `dist/verify-demo` folder contains only public, disposable test data:
+## What it does
 
-1. **Check a File:** choose SHA-256 (the default) or SHA-512, then select `demo-release.txt` to view its hash.
-2. From the hash result, choose **Compare with a Checksum**, then select `demo-manifest.txt`. The file is already selected. It should say **Checksum Matches**, not that the publisher is trusted. Alternatively type the hexadecimal hash using **Enter Checksum**. Comparison selects the algorithm from the expected checksum and rereads the file.
-3. **Verify a Signed Release:** select `demo-release.txt`, `demo-manifest.txt`, `ed25519-manifest.asc`, and `ed25519-public-key.asc`. It should say **Signature and Hash Match**.
-4. For this test key only, compare the fingerprint with `DEMO.md`, then explicitly trust it. Subsequent checks can choose that publisher from the saved-key list and say **Release Verified**.
-5. Select `demo-wrong-manifest.txt` for a negative checksum test. It must fail.
-6. The top-right three-dot menu contains **Saved Publisher Keys** and **About Verification**. Overview cards show publisher names and emails. Tap a card to see the full fingerprint and the red **Delete Key** button. A confirmation dialog offers **Cancel** or **Delete Key**, with no archive step. This removes only that fingerprint's saved trust and metadata. **Forget All Saved Keys** remains available with confirmation. Neither action changes any files.
+- Calculates SHA-256 and SHA-512 hashes without loading the whole file into memory.
+- Compares a file with GNU, BSD, or bare checksum files.
+- Verifies detached OpenPGP signatures over checksum files.
+- Verifies clear-signed OpenPGP checksum files.
+- Verifies detached OpenPGP signatures made directly over release files.
+- Supports binary signature bundles and consecutive armored signature blocks.
+- Saves explicitly trusted publisher fingerprints and reusable public certificates on the device.
+- Works with files from Internal storage, Airlock, SD cards, and USB storage through KeyOS file pickers.
 
-Never treat the included demo key as a real publisher identity. For real releases, obtain the publisher fingerprint from an independent trusted source, not just the same download folder or computer.
+Verify has no network access and cannot access the Passport master seed or Seed Vault. It never signs, decrypts, generates keys, installs software, or executes the files it checks.
 
-## Supported checks
+## Screenshots
 
-- Stream SHA-256/SHA-512 with a 32 KiB file buffer, progress, and cancellation between reads.
-- Expected hashes from text entry or a checksum file.
-- GNU `sha256sum`/`sha512sum`, BSD `SHA256 (...) = ...`/`SHA512 (...) = ...`, and a single bare hex digest.
-- Detached OpenPGP signatures in binary or ASCII armor, with one public certificate and one detached signature per file.
-- Modern signing algorithms, including RSA >=2048 bits and Ed25519. The test suite includes a real Sparrow 2.5.4 RSA-4096 release and signing-subkey fixtures.
-- Expiration and supplied revocation checks, full primary-key fingerprint display, and explicit per-device trust decisions.
-- File selection from Internal, Airlock, or external storage through SDK system pickers.
+| Hash a file | Compare a checksum |
+| --- | --- |
+| ![Calculated file hash](screenshots/hash-calculated.png) | ![Checksum matches](screenshots/checksum-matches.png) |
 
-The checksum must match the selected filename. Duplicate basename matches are rejected. Compressed/clear-signed OpenPGP messages, multi-key bundles, animated UR hashes, URLs, MD5, SHA-1 data signatures, and arbitrary signature formats are not supported.
+| Verify a release | Review the result |
+| --- | --- |
+| ![Release files selected](screenshots/release-ready.png) | ![Signature and hash match](screenshots/release-verified.png) |
+
+| Saved publishers | Delete one publisher |
+| --- | --- |
+| ![Saved publisher keys](screenshots/saved-publishers.png) | ![Delete publisher confirmation](screenshots/delete-publisher.png) |
+
+## Install
+
+Verify 1.0.0 requires KeyOS 1.4.0-beta3 or newer.
+
+1. Download these files from the [latest GitHub release](https://github.com/BitcoinQnA/keyos-verify/releases/latest):
+   - `verify-1.0.0-beta3.app`
+   - `qna-publisher.crt`
+   - `SHA256SUMS.txt`
+2. Confirm the downloads match `SHA256SUMS.txt`.
+3. Independently compare the QnA publisher fingerprint before allowing the certificate:
+
+   ```text
+   1fc590a13d547db696e0d3cd12d07a4d7b119e957b301aedd1299b10a1852971
+   ```
+
+4. Copy the certificate and app package to an SD card, USB drive, or Airlock. Do not unpack the `.app` file.
+5. On Passport, open **Settings > Apps**, allow the QnA publisher certificate, and carefully compare the fingerprint shown on the device.
+6. Choose **Install App**, select `verify-1.0.0-beta3.app`, and follow the on-device confirmation.
+
+Allowing a publisher permits apps signed by that certificate to run. The displayed QnA name and email are self-asserted; the full fingerprint is the identity to compare.
+
+## Verify a release
+
+Always choose the release file and publisher public key. Then select the other files supplied by the publisher:
+
+| Publisher's release structure | Checksums | Signature |
+| --- | --- | --- |
+| Separate checksum and signature files | Select checksum file | Select detached signature |
+| Clear-signed checksum file | Select clear-signed checksum | Leave empty |
+| Signature directly over the release file | Leave empty | Select detached signature |
+
+The selected public certificate must validate at least one acceptable signature in a bundle. Verify does not claim every signature is valid and does not enforce a multi-party signing threshold.
+
+For a first-time publisher, compare the complete fingerprint with a value obtained through an independent trusted channel. Only then choose **Trust This Publisher Key**. A later release can reuse the saved public key from the publisher picker.
+
+## Supported inputs
+
+- SHA-256 and SHA-512.
+- GNU `sha256sum`/`sha512sum` manifests.
+- BSD `SHA256 (...) = ...`/`SHA512 (...) = ...` manifests.
+- One bare hexadecimal digest.
+- ASCII-armored and binary detached OpenPGP signatures.
+- Clear-signed OpenPGP checksum files.
+- RSA keys of at least 2048 bits and Ed25519 signing keys.
+- Supplied key expiration and revocation information.
+
+For signed-checksum workflows, the checksum entry must match the selected filename. Duplicate basename matches are rejected.
 
 ## Security boundaries
 
-Verify cannot access the master seed or Seed Vault. It declares no `os/security` permission, accepts no seed imports, and performs no signing, decryption, key generation, installation, or software execution. Public keys are imported only for verification. Trusted fingerprints, display names/emails, and the corresponding public certificates are stored in app-private data so a saved publisher can be selected again. User files are opened read-only.
+A matching hash proves only that two byte sequences match. A valid signature proves that a particular key signed those bytes. Neither result proves that the key belongs to the claimed person, that the software is safe, or that the release is current.
 
-Saved Publisher Keys shows a card for each trusted fingerprint, with the associated name and email when available. The Verify Release publisher-key row opens these saved publishers before offering the file picker. Entries created before public certificates were retained stay trusted but need one successful re-import before reuse. Names and emails are self-asserted display metadata, not identity proof. Metadata and reusable public certificates are saved only after both the signature and release checksum pass and never grant trust to an unknown fingerprint.
+Verify cannot:
 
-A matching hash does not authenticate a publisher. A valid signature proves use of a key, not that the key belongs to the claimed person or that the software is safe. The app cannot discover new revocations, check online for updates, detect an old but valid release, or guarantee the computer will later execute the bytes checked here. Set the device clock correctly. See [SECURITY.md](SECURITY.md).
+- discover a newly published revocation while offline;
+- prevent a valid older release from being checked;
+- guarantee that another computer later executes the exact file checked;
+- verify Minisign, Sigstore/Cosign, compressed OpenPGP messages, or multi-key certificate bundles;
+- validate every signer in a bundle or enforce a signing threshold.
 
-## Build and test
+Set the Passport clock correctly before checking time-limited keys or signatures. Read [SECURITY.md](SECURITY.md) for input limits, trust storage, dependency notes, and the complete threat model.
 
-Install the Foundation SDK using its [official getting-started guide](https://docs.foundation.xyz/developers/get-started/). This app uses the installed SDK bundle through `.foundation-sdk/current`, with no dependency on a KeyOS worktree. Configure your own signing identity in `app-config.toml` if you do not have `qna-dev`.
+## Test files
+
+The release includes `verify-1.0.0-test-files.zip`, containing public disposable fixtures for positive and negative tests. Never treat its demo keys as real publisher identities.
+
+The automated suite covers signature and checksum success, tampering, wrong keys, weak algorithms, expiry, revocation, malformed packets, streaming, cancellation, saved-publisher persistence, package signatures, archive integrity, and UI regressions. See [TESTING.md](TESTING.md) for the release evidence.
+
+## Build from source
+
+Install the Foundation SDK using its [official getting-started guide](https://docs.foundation.xyz/developers/get-started/). This project uses the installed SDK bundle through `.foundation-sdk/current` and the signing identity selected in `app-config.toml`.
 
 Inside the SDK development shell:
 
@@ -47,19 +111,23 @@ Inside the SDK development shell:
 foundation doctor
 cargo test -p verify-core
 cargo clippy -p verify-core --all-targets -- -D warnings
-cargo fmt -p keyos-verify -p verify-core --check
+cargo fmt -p keyos-verify -p verify-core -- --check
 python3 -m unittest discover -s tests -p 'test_*.py' -v
+bash scripts/check-ui.sh
 foundation sim
 ```
 
-After code generation, `bash scripts/check-ui.sh` renders all 11 screens at two heights in both themes, plus edge-case states. The `tests/sim-*.json` scripts drive simulator-only demo workflows; coordinates and waits depend on the SDK file picker state. Review the resulting screenshots, not just command exit status.
+Create the signed KeyOS beta3 package:
 
 ```sh
-mkdir -p dist
-foundation pack --release --out target/verify-sdk-0.1.9.app
-python3 scripts/pack-beta3.py target/verify-sdk-0.1.9.app dist/verify-0.1.9-beta3.app
+foundation pack --release --out target/verify-sdk-1.0.0.app
+python3 scripts/pack-beta3.py target/verify-sdk-1.0.0.app dist/verify-1.0.0-beta3.app
+VERIFY_PACKAGE=dist/verify-1.0.0-beta3.app \
+  python3 -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-The packaging wrapper validates signatures, hashes, archive contents, app ID and version, and preserves `minKeyosVersion`, which Beta 3 requires. It refuses to overwrite an output.
+## Support and license
 
-Tracking: [SUP-1273](https://linear.app/foundation-devices/issue/SUP-1273). See [TESTING.md](TESTING.md) for the release evidence and device-test limits.
+Report bugs through [GitHub Issues](https://github.com/BitcoinQnA/keyos-verify/issues). Do not include private keys, recovery words, non-public files, or other secrets in a report.
+
+Verify is available under the [MIT License](LICENSE).

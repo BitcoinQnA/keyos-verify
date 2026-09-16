@@ -1,4 +1,4 @@
-import { Theme, Images, ControlSize, ButtonVariant } from "@ui/theme.slint";
+import { Theme, ControlSize, ButtonVariant } from "@ui/theme.slint";
 import { Button } from "@ui/button.slint";
 import { Dialog, DialogVariant } from "@ui/dialog.slint";
 import { Navigate } from "../../gen/navigate.slint";
@@ -51,7 +51,7 @@ export component PublisherPagePage inherits Rectangle {
                 alignment: center;
                 Image {
                     width: 48px; height: 48px;
-                    source: Images.icon("circle-alert", 48px);
+                    source: @image-url("../../assets/delete-warning.png");
                     colorize: Theme.palette-danger;
                 }
             }

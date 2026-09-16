@@ -1,6 +1,37 @@
 # Verify release checks
 
-## Current installer: 0.1.9
+## Current installer: 1.0.0
+
+All in-app icons now use local 4x raster masters generated from editable SVG sources. This removes the delete-dialog warning glyph's 24-to-48px upscale and gives the navigation chevrons, overflow-menu icons, and result symbols enough source resolution for the Passport display.
+
+- The icon audit covers every `Image` icon in the UI. The launcher artwork remains vector SVG.
+- All 116 UI renders pass at both device heights and in both themes, including the delete confirmation, open overflow menu, publisher list, and success/failure results.
+- All 62 `verify-core` tests pass. The app target builds and passes Clippy with warnings denied; the SDK's existing dependency warnings remain outside the app target.
+- All 27 package and UI tests pass against `dist/verify-1.0.0-beta3.app`, including real manifest/ELF signature validation and tamper rejection.
+- `cargo audit` reports no unallowed vulnerabilities. Six unmaintained transitive SDK dependencies remain allowed and documented in `SECURITY.md`.
+- GnuPG independently validates the detached manifest, clear-signed manifest, direct-file signature, and both signatures in the bundled multi-signature fixture.
+- The simulator completed SHA-256 hashing, checksum match, checksum mismatch, separate checksum/signature release verification, saved-publisher browsing, publisher details, and delete-confirmation cancellation. A malformed field combination was rejected rather than treated as verified.
+- The bundled hosted simulator still panics in the SDK kernel after enough repeated file-picker processes. Each test session used one simulator at a time; completed app results and all host tests remained valid.
+- Selected release screenshots are tracked under `screenshots/`; the larger test evidence set remains under ignored `target/release-screenshots/`.
+- Installer SHA-256: `2afa56e352fa567281bb47e9cb45174ad14f499bec1cd5755aee9cfa21a920a5`.
+- App hash: `dd3af4e59af7d4fa9540df2a06e6dd8f0a81d22a80ad5c0dad24818aadc34b4b`.
+- Test archive SHA-256: `c8e364c4b92c11a79587d97b0f2a380f3145a43fd38355a0f3a6544ca9eaa28c`.
+- Public QnA certificate SHA-256: `0730387e98a92baf12f10e74ce31437661b7536085ca45d52f097d80dc715da1`.
+
+## Previous installer: 0.2.0
+
+The Verify Release flow now covers three common OpenPGP layouts without changing its fingerprint trust model: detached signatures over checksum files, clear-signed checksum files, and detached signatures directly over release artifacts. Detached signature bundles may contain multiple binary packets or consecutive armored signature blocks; the selected publisher certificate must validate at least one of them.
+
+- 62 core tests pass, including streamed direct-file verification, clear-signed checksum authentication and tamper rejection, multi-signature binary/armored bundles, and selection of a matching publisher signature later in a bundle.
+- Existing signature policy remains in force: SHA-256 or stronger, modern keys, signing authorization, signature/key time checks, supplied revocations, exact fingerprint trust, and bounded inputs.
+- The app still accepts exactly one public certificate per verification. It does not enforce multi-party thresholds and does not support Minisign or Sigstore/Cosign bundles.
+- The Verify Release screen explains the three valid field combinations; all 116 UI renders pass at both device heights and in both themes.
+- All 25 package and UI-style tests pass against `dist/verify-0.2.0-beta3.app`, including cryptographic signature and tamper checks.
+- Installer SHA-256: `40fb852181b62601e9dded030f646a4aec7786466e745ad6b789d36e113c6cdf`.
+- App hash: `81da8518edf47d544ff4ad23fa91133938a25133bedc0e427226067e86a9153b`.
+- The signed installer and `dist/verify-0.2.0-test-kit` are copied to PASSPORT-SD. The kit's GnuPG-generated files pass both GnuPG verification and Verify's own core across all supported layouts.
+
+## Previous installer: 0.1.9
 
 The active overflow menu follows the native KeyOS visual hierarchy: a strong dimming backdrop, bright elevated menu surface, rounded border and trailing lock/info icons. It keeps the non-modal implementation and 64x60px touch target introduced in 0.1.8.
 

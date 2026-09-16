@@ -4,3 +4,4 @@ ui/ui
 manifest.toml
 dist/
 __pycache__/
+.DS_Store

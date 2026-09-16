@@ -1,10 +1,10 @@
 # Security scope
 
-Verify is an internal POC, not an audited security product. Report findings to the Support issue [SUP-1273](https://linear.app/foundation-devices/issue/SUP-1273). Do not attach secrets.
+Verify is a third-party Foundation SDK app and has not received an independent security audit. Report findings through [GitHub Issues](https://github.com/BitcoinQnA/keyos-verify/issues) without attaching secrets. For a vulnerability that should not be public before a fix is available, use GitHub's private vulnerability reporting for this repository.
 
 ## Trust model
 
-The app independently hashes the selected file on the device. It verifies a detached signature over the exact manifest bytes, then matches and hashes the chosen artifact. A green result additionally requires the primary-key fingerprint to be explicitly trusted on this device. Claimed names inside a public key are not identity evidence.
+The app supports three OpenPGP layouts. It can verify a detached signature over exact checksum-file bytes and then independently hash the selected artifact, authenticate and parse a clear-signed checksum file before hashing the artifact, or stream the artifact itself through detached-signature verification. A green result additionally requires the primary-key fingerprint to be explicitly trusted on this device. Claimed names inside a public key are not identity evidence.
 
 The versioned trust file contains at most 32 public fingerprints with optional display names, emails, and markers for complete saved certificates. Each reusable public certificate is held separately in durable app-private storage and is bounded to 512 KiB. Legacy newline-separated fingerprint files remain readable; metadata and the complete certificate are populated after successful verification of a signed release. Metadata and certificate availability cannot grant trust or replace fingerprint matching. Names/emails are sanitized, length-limited, and displayed as claims from the key, not verified personal identities. Stores over 64 KiB or invalid versioned stores grant no trust.
 
@@ -15,6 +15,7 @@ Per-key removal targets the full fingerprint, never a name, email or list positi
 ## Limits
 
 - Input bounds: 256 KiB manifests, 128 KiB signatures, 512 KiB public certificates, 1 KiB manually entered expected hashes. Artifact bytes are streamed.
+- A signature bundle succeeds when at least one acceptable signature validates with the selected public certificate. Verify does not validate every signer, combine multiple certificates, or enforce a threshold policy.
 - Untrusted OpenPGP inputs are parsed by rPGP 0.20.0. Limits and malformed-input tests reduce risk but do not constitute fuzzing assurance or a parser security audit.
 - Expiry uses the device clock. Revocation checks can only evaluate revocations included in the supplied certificate. An attacker can supply an older certificate or a valid older release. Offline verification does not provide freshness or rollback protection.
 - A successful result applies to the bytes read in that operation. Replacing the file afterwards, or executing a different file on a compromised host, is outside the guarantee.

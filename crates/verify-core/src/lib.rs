@@ -4,7 +4,7 @@ use std::{
 };
 
 use pgp::{
-    composed::{Deserializable, DetachedSignature, SignedPublicKey},
+    composed::{CleartextSignedMessage, Deserializable, DetachedSignature, SignedPublicKey},
     crypto::hash::HashAlgorithm as PgpHashAlgorithm,
     packet::{Signature, SignatureType},
     types::{KeyDetails, KeyVersion, PublicParams},
@@ -16,6 +16,7 @@ pub mod trust;
 pub const MAX_MANIFEST_BYTES: usize = 256 * 1024;
 pub const MAX_SIGNATURE_BYTES: usize = 128 * 1024;
 pub const MAX_PUBLIC_KEY_BYTES: usize = 512 * 1024;
+pub const MAX_SIGNATURES: usize = 64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HashAlgorithm {
@@ -237,28 +238,97 @@ pub fn stream_bytes(
 }
 
 pub fn verify_detached_signature(
-    manifest: &[u8],
+    data: &[u8],
     signature_bytes: &[u8],
     public_key_bytes: &[u8],
 ) -> Result<SignatureIdentity, String> {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        // TODO: localize
-        .map_err(|_| "Set the device clock before verifying signatures.".to_string())?
-        .as_secs();
-    verify_detached_signature_at(manifest, signature_bytes, public_key_bytes, now)
+    verify_detached_signature_at(data, signature_bytes, public_key_bytes, current_time()?)
 }
 
 pub fn verify_detached_signature_at(
-    manifest: &[u8],
+    data: &[u8],
     signature_bytes: &[u8],
     public_key_bytes: &[u8],
     now: u64,
 ) -> Result<SignatureIdentity, String> {
-    if manifest.len() > MAX_MANIFEST_BYTES {
+    if data.len() > MAX_MANIFEST_BYTES {
         // TODO: localize
         return Err("Checksum manifest exceeds the 256 KiB safety limit.".into());
     }
+    verify_detached_signature_reader_at(signature_bytes, public_key_bytes, now, || {
+        Ok(Cursor::new(data))
+    })
+}
+
+pub fn verify_detached_signature_reader<R: Read>(
+    signature_bytes: &[u8],
+    public_key_bytes: &[u8],
+    open_data: impl FnMut() -> Result<R, String>,
+) -> Result<SignatureIdentity, String> {
+    verify_detached_signature_reader_at(
+        signature_bytes,
+        public_key_bytes,
+        current_time()?,
+        open_data,
+    )
+}
+
+pub fn verify_cleartext_signature(
+    message_bytes: &[u8],
+    public_key_bytes: &[u8],
+) -> Result<(SignatureIdentity, String), String> {
+    verify_cleartext_signature_at(message_bytes, public_key_bytes, current_time()?)
+}
+
+pub fn verify_cleartext_signature_at(
+    message_bytes: &[u8],
+    public_key_bytes: &[u8],
+    now: u64,
+) -> Result<(SignatureIdentity, String), String> {
+    if message_bytes.len() > MAX_MANIFEST_BYTES {
+        // TODO: localize
+        return Err("Signed checksum file exceeds the 256 KiB safety limit.".into());
+    }
+    if public_key_bytes.len() > MAX_PUBLIC_KEY_BYTES {
+        // TODO: localize
+        return Err("Public key exceeds the 512 KiB safety limit.".into());
+    }
+    let text = std::str::from_utf8(message_bytes)
+        // TODO: localize
+        .map_err(|_| "The signed checksum file is not UTF-8 text.".to_string())?;
+    let (message, _) = CleartextSignedMessage::from_string(text)
+        // TODO: localize
+        .map_err(|error| format!("Could not parse the signed checksum file: {error}"))?;
+    if message.signatures().len() > MAX_SIGNATURES {
+        // TODO: localize
+        return Err(format!(
+            "The signed checksum file contains more than {MAX_SIGNATURES} signatures."
+        ));
+    }
+    let signed_text = message.signed_text();
+    let key = parse_public_key(public_key_bytes)?;
+    precheck_signatures(message.signatures().iter(), &key, now)?;
+    let key = prepare_public_key(key, now)?;
+    let identity = verify_signatures(message.signatures().iter(), &key, now, || {
+        Ok(Cursor::new(signed_text.as_bytes()))
+    })?;
+    Ok((identity, signed_text))
+}
+
+fn current_time() -> Result<u64, String> {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        // TODO: localize
+        .map_err(|_| "Set the device clock before verifying signatures.".to_string())
+        .map(|duration| duration.as_secs())
+}
+
+fn verify_detached_signature_reader_at<R: Read>(
+    signature_bytes: &[u8],
+    public_key_bytes: &[u8],
+    now: u64,
+    open_data: impl FnMut() -> Result<R, String>,
+) -> Result<SignatureIdentity, String> {
     if signature_bytes.len() > MAX_SIGNATURE_BYTES {
         // TODO: localize
         return Err("Signature exceeds the 128 KiB safety limit.".into());
@@ -268,30 +338,31 @@ pub fn verify_detached_signature_at(
         return Err("Public key exceeds the 512 KiB safety limit.".into());
     }
 
-    let signature = parse_signature(signature_bytes)?;
+    let signatures = parse_signatures(signature_bytes)?;
     let key = parse_public_key(public_key_bytes)?;
-    if !matches!(
-        signature.signature.hash_alg(),
-        Some(
-            PgpHashAlgorithm::Sha256
-                | PgpHashAlgorithm::Sha384
-                | PgpHashAlgorithm::Sha512
-                | PgpHashAlgorithm::Sha3_256
-                | PgpHashAlgorithm::Sha3_512
-        )
-    ) {
-        // TODO: localize
-        return Err("The signature uses an unsupported or weak hash algorithm.".into());
-    }
-    if !matches!(
-        signature.signature.typ(),
-        Some(SignatureType::Binary | SignatureType::Text)
-    ) {
-        // TODO: localize
-        return Err("Expected a detached data signature.".into());
-    }
+    precheck_signatures(
+        signatures.iter().map(|signature| &signature.signature),
+        &key,
+        now,
+    )?;
+    let key = prepare_public_key(key, now)?;
+    verify_signatures(
+        signatures.iter().map(|signature| &signature.signature),
+        &key,
+        now,
+        open_data,
+    )
+}
+
+struct PreparedPublicKey {
+    key: SignedPublicKey,
+    fingerprint: String,
+    user_id: Option<String>,
+    primary_can_sign: bool,
+}
+
+fn prepare_public_key(key: SignedPublicKey, now: u64) -> Result<PreparedPublicKey, String> {
     check_key_strength(&key.primary_key)?;
-    check_signature_time(&signature.signature, now)?;
     key.verify_bindings()
         // TODO: localize
         .map_err(|error| format!("Public key certificate is invalid: {error}"))?;
@@ -335,7 +406,7 @@ pub fn verify_detached_signature_at(
     };
     check_key_expiration(&key.primary_key, primary_policy, now)?;
 
-    let primary_fingerprint = format!("{:X}", key.fingerprint());
+    let fingerprint = format!("{:X}", key.fingerprint());
     let user_id = key
         .details
         .users
@@ -348,26 +419,105 @@ pub fn verify_detached_signature_at(
         })
         .and_then(|user| std::str::from_utf8(user.id.id()).ok().map(str::to_string));
 
-    if signature.verify(&key.primary_key, manifest).is_ok() {
-        if !primary_policy.key_flags().sign() {
-            // TODO: localize
-            return Err("The primary key is not authorized for signing.".into());
-        }
-        return Ok(SignatureIdentity {
-            fingerprint: primary_fingerprint.clone(),
-            user_id,
-            signing_key: primary_fingerprint,
-        });
-    }
-    for subkey in &key.public_subkeys {
-        if subkey
-            .signatures
-            .iter()
-            .any(|signature| signature.typ() == Some(SignatureType::SubkeyRevocation))
-        {
+    let primary_can_sign = primary_policy.key_flags().sign();
+    Ok(PreparedPublicKey {
+        key,
+        fingerprint,
+        user_id,
+        primary_can_sign,
+    })
+}
+
+fn precheck_signatures<'a>(
+    signatures: impl IntoIterator<Item = &'a Signature>,
+    key: &SignedPublicKey,
+    now: u64,
+) -> Result<(), String> {
+    let mut matching = false;
+    let mut error = None;
+    for signature in signatures {
+        let matches = signature_matches_key(signature, &key.primary_key)
+            || key
+                .public_subkeys
+                .iter()
+                .any(|subkey| signature_matches_key(signature, &subkey.key));
+        if !matches {
             continue;
         }
-        if signature.verify(&subkey.key, manifest).is_ok() {
+        matching = true;
+        match check_data_signature(signature, now) {
+            Ok(()) => return Ok(()),
+            Err(candidate_error) => error = Some(candidate_error),
+        }
+    }
+    if let Some(error) = error {
+        return Err(error);
+    }
+    if matching {
+        Ok(())
+    } else {
+        // TODO: localize
+        Err("No signature from this publisher key was found.".into())
+    }
+}
+
+fn verify_signatures<'a, R: Read>(
+    signatures: impl IntoIterator<Item = &'a Signature>,
+    prepared: &PreparedPublicKey,
+    now: u64,
+    mut open_data: impl FnMut() -> Result<R, String>,
+) -> Result<SignatureIdentity, String> {
+    let signatures = signatures.into_iter().collect::<Vec<_>>();
+    if signatures.is_empty() {
+        // TODO: localize
+        return Err("No signature found.".into());
+    }
+
+    let mut policy_error = None;
+    for signature in signatures {
+        let primary_matches = signature_matches_key(signature, &prepared.key.primary_key);
+        let matching_subkeys = prepared
+            .key
+            .public_subkeys
+            .iter()
+            .filter(|subkey| signature_matches_key(signature, &subkey.key))
+            .collect::<Vec<_>>();
+        if !primary_matches && matching_subkeys.is_empty() {
+            continue;
+        }
+
+        if let Err(error) = check_data_signature(signature, now) {
+            policy_error = Some(error);
+            continue;
+        }
+
+        if primary_matches
+            && signature
+                .verify(&prepared.key.primary_key, open_data()?)
+                .is_ok()
+        {
+            if !prepared.primary_can_sign {
+                // TODO: localize
+                return Err("The primary key is not authorized for signing.".into());
+            }
+            return Ok(SignatureIdentity {
+                fingerprint: prepared.fingerprint.clone(),
+                user_id: prepared.user_id.clone(),
+                signing_key: prepared.fingerprint.clone(),
+            });
+        }
+
+        for subkey in matching_subkeys {
+            if subkey
+                .signatures
+                .iter()
+                .any(|signature| signature.typ() == Some(SignatureType::SubkeyRevocation))
+            {
+                continue;
+            }
+            if signature.verify(&subkey.key, open_data()?).is_err() {
+                continue;
+            }
             check_key_strength(&subkey.key)?;
             let policy = subkey
                 .signatures
@@ -387,14 +537,54 @@ pub fn verify_detached_signature_at(
             }
             check_key_expiration(&subkey.key, policy, now)?;
             return Ok(SignatureIdentity {
-                fingerprint: primary_fingerprint,
-                user_id,
+                fingerprint: prepared.fingerprint.clone(),
+                user_id: prepared.user_id.clone(),
                 signing_key: format!("{:X}", subkey.fingerprint()),
             });
         }
     }
+
+    if let Some(error) = policy_error {
+        return Err(error);
+    }
     // TODO: localize
-    Err("The detached signature is not valid for this manifest and key.".into())
+    Err("No valid signature from this publisher key was found.".into())
+}
+
+fn check_data_signature(signature: &Signature, now: u64) -> Result<(), String> {
+    if !matches!(
+        signature.hash_alg(),
+        Some(
+            PgpHashAlgorithm::Sha256
+                | PgpHashAlgorithm::Sha384
+                | PgpHashAlgorithm::Sha512
+                | PgpHashAlgorithm::Sha3_256
+                | PgpHashAlgorithm::Sha3_512
+        )
+    ) {
+        // TODO: localize
+        return Err("The signature uses an unsupported or weak hash algorithm.".into());
+    }
+    if !matches!(
+        signature.typ(),
+        Some(SignatureType::Binary | SignatureType::Text)
+    ) {
+        // TODO: localize
+        return Err("Expected a detached data signature.".into());
+    }
+    check_signature_time(signature, now)
+}
+
+fn signature_matches_key(signature: &Signature, key: &impl KeyDetails) -> bool {
+    let issuer_ids = signature.issuer_key_id();
+    let issuer_fingerprints = signature.issuer_fingerprint();
+    (issuer_ids.is_empty() && issuer_fingerprints.is_empty())
+        || issuer_ids
+            .iter()
+            .any(|issuer| *issuer == &key.legacy_key_id())
+        || issuer_fingerprints
+            .iter()
+            .any(|issuer| *issuer == &key.fingerprint())
 }
 
 fn check_signature_time(signature: &Signature, now: u64) -> Result<(), String> {
@@ -454,8 +644,77 @@ fn check_key_strength(key: &impl KeyDetails) -> Result<(), String> {
     }
 }
 
-fn parse_signature(bytes: &[u8]) -> Result<DetachedSignature, String> {
-    parse_one(bytes, "signature")
+fn parse_signatures(bytes: &[u8]) -> Result<Vec<DetachedSignature>, String> {
+    const BEGIN: &str = "-----BEGIN PGP SIGNATURE-----";
+    const END: &str = "-----END PGP SIGNATURE-----";
+
+    let mut signatures = Vec::new();
+    if bytes
+        .iter()
+        .copied()
+        .find(|byte| !byte.is_ascii_whitespace())
+        == Some(b'-')
+    {
+        let text = std::str::from_utf8(bytes)
+            // TODO: localize
+            .map_err(|_| "The armored signature is not UTF-8 text.".to_string())?;
+        let mut remaining = text;
+        while !remaining.trim().is_empty() {
+            let start = remaining
+                .find(BEGIN)
+                // TODO: localize
+                .ok_or_else(|| "Could not find an OpenPGP signature block.".to_string())?;
+            if !remaining[..start].trim().is_empty() {
+                // TODO: localize
+                return Err("Unexpected text appears before an OpenPGP signature.".into());
+            }
+            let after_start = &remaining[start + BEGIN.len()..];
+            let end = after_start
+                .find(END)
+                // TODO: localize
+                .ok_or_else(|| "The OpenPGP signature block is incomplete.".to_string())?
+                + start
+                + BEGIN.len()
+                + END.len();
+            let block = &remaining[start..end];
+            let (objects, _) = DetachedSignature::from_armor_many(Cursor::new(block.as_bytes()))
+                // TODO: localize
+                .map_err(|error| format!("Could not parse signature: {error}"))?;
+            collect_signatures(objects, &mut signatures)?;
+            remaining = &remaining[end..];
+        }
+    } else {
+        let objects = DetachedSignature::from_bytes_many(Cursor::new(bytes))
+            // TODO: localize
+            .map_err(|error| format!("Could not parse signature: {error}"))?;
+        collect_signatures(objects, &mut signatures)?;
+    }
+
+    if signatures.is_empty() {
+        // TODO: localize
+        return Err("No signature found.".into());
+    }
+    Ok(signatures)
+}
+
+fn collect_signatures<'a>(
+    objects: impl Iterator<Item = pgp::errors::Result<DetachedSignature>> + 'a,
+    signatures: &mut Vec<DetachedSignature>,
+) -> Result<(), String> {
+    for object in objects {
+        if signatures.len() >= MAX_SIGNATURES {
+            // TODO: localize
+            return Err(format!(
+                "Choose a file containing no more than {MAX_SIGNATURES} signatures."
+            ));
+        }
+        signatures.push(
+            object
+                // TODO: localize
+                .map_err(|error| format!("Could not parse signature: {error}"))?,
+        );
+    }
+    Ok(())
 }
 
 fn parse_public_key(bytes: &[u8]) -> Result<SignedPublicKey, String> {

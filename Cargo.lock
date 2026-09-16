@@ -3655,7 +3655,7 @@ version = "0.1.0"
 
 [[package]]
 name = "keyos-verify"
-version = "0.1.9"
+version = "1.0.0"
 dependencies = [
  "crypto",
  "foundation-themes",
@@ -7305,10 +7305,12 @@ name = "verify-core"
 version = "0.1.0"
 dependencies = [
  "pgp",
+ "rand 0.8.6",
  "rsa",
  "serde",
  "serde_json",
  "sha2",
+ "smallvec",
 ]
 
 [[package]]

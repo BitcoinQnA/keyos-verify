@@ -1,4 +1,16 @@
-use verify_core::{verify_detached_signature, MAX_MANIFEST_BYTES};
+use std::io::Cursor;
+
+use pgp::{
+    composed::{CleartextSignedMessage, KeyType, SecretKeyParamsBuilder},
+    crypto::{hash::HashAlgorithm as PgpHashAlgorithm, sym::SymmetricKeyAlgorithm},
+    types::Password,
+};
+use rand::thread_rng;
+use smallvec::smallvec;
+use verify_core::{
+    verify_cleartext_signature, verify_detached_signature, verify_detached_signature_reader,
+    MAX_MANIFEST_BYTES,
+};
 
 const MANIFEST: &[u8] = include_bytes!("fixtures/demo-manifest.txt");
 const KEY: &[u8] = include_bytes!("fixtures/test-public-key.asc");
@@ -15,6 +27,34 @@ fn accepts_armored_rsa_signing_subkey() {
 #[test]
 fn accepts_binary_rsa_signature() {
     verify_detached_signature(MANIFEST, include_bytes!("fixtures/demo-manifest.sig"), KEY).unwrap();
+}
+
+#[test]
+fn accepts_a_direct_signature_over_a_streamed_file() {
+    let identity =
+        verify_detached_signature_reader(SIGNATURE, KEY, || Ok(Cursor::new(MANIFEST))).unwrap();
+    assert!(identity.user_id.unwrap().contains("Verify RSA Fixture"));
+}
+
+#[test]
+fn accepts_a_clear_signed_checksum_manifest() {
+    let (message, public_key) = clear_signed_manifest();
+    let (identity, signed_text) =
+        verify_cleartext_signature(message.as_bytes(), public_key.as_bytes()).unwrap();
+    assert!(identity.user_id.unwrap().contains("Cleartext Fixture"));
+    assert_eq!(
+        verify_core::parse_manifest(&signed_text).unwrap()[0]
+            .filename
+            .as_deref(),
+        Some("demo-release.txt")
+    );
+}
+
+#[test]
+fn rejects_a_modified_clear_signed_manifest() {
+    let (message, public_key) = clear_signed_manifest();
+    let modified = message.replacen("demo-release.txt", "other-release.txt", 1);
+    assert!(verify_cleartext_signature(modified.as_bytes(), public_key.as_bytes()).is_err());
 }
 
 #[test]
@@ -69,11 +109,9 @@ fn rejects_weak_sha1_signature() {
 
 #[test]
 fn rejects_signatures_in_the_future() {
-    assert!(
-        verify_core::verify_detached_signature_at(MANIFEST, SIGNATURE, KEY, 1_600_000_000)
-            .unwrap_err()
-            .contains("future")
-    );
+    let error = verify_core::verify_detached_signature_at(MANIFEST, SIGNATURE, KEY, 1_600_000_000)
+        .unwrap_err();
+    assert!(error.contains("future"), "{error}");
 }
 
 #[test]
@@ -104,14 +142,14 @@ fn checks_key_expiry_at_a_fixed_time() {
 
 #[test]
 fn rejects_expired_signature() {
-    assert!(verify_core::verify_detached_signature_at(
+    let error = verify_core::verify_detached_signature_at(
         MANIFEST,
         include_bytes!("fixtures/expiring-signature.asc"),
         include_bytes!("fixtures/expiring-public-key.asc"),
-        1_767_400_000
+        1_767_400_000,
     )
-    .unwrap_err()
-    .contains("signature has expired"));
+    .unwrap_err();
+    assert!(error.contains("signature has expired"), "{error}");
 }
 
 #[test]
@@ -138,13 +176,29 @@ fn rejects_1024_bit_rsa() {
 }
 
 #[test]
-fn rejects_multiple_binary_signatures() {
+fn accepts_multiple_binary_signatures() {
     let single = include_bytes!("fixtures/demo-manifest.sig");
     let mut signatures = single.to_vec();
     signatures.extend_from_slice(single);
-    assert!(verify_detached_signature(MANIFEST, &signatures, KEY)
-        .unwrap_err()
-        .contains("exactly one"));
+    verify_detached_signature(MANIFEST, &signatures, KEY).unwrap();
+}
+
+#[test]
+fn accepts_multiple_armored_signature_blocks() {
+    let single = include_bytes!("fixtures/demo-manifest.asc");
+    let mut signatures = single.to_vec();
+    signatures.extend_from_slice(b"\n");
+    signatures.extend_from_slice(single);
+    verify_detached_signature(MANIFEST, &signatures, KEY).unwrap();
+}
+
+#[test]
+fn finds_the_selected_key_later_in_a_signature_bundle() {
+    let mut signatures = include_bytes!("fixtures/ed25519-manifest.asc").to_vec();
+    signatures.extend_from_slice(b"\n");
+    signatures.extend_from_slice(SIGNATURE);
+    let identity = verify_detached_signature(MANIFEST, &signatures, KEY).unwrap();
+    assert!(identity.user_id.unwrap().contains("Verify RSA Fixture"));
 }
 
 #[test]
@@ -191,4 +245,29 @@ fn random_garbage_never_panics() {
             .collect();
         assert!(verify_detached_signature(MANIFEST, &bytes, KEY).is_err());
     }
+}
+
+fn clear_signed_manifest() -> (String, String) {
+    let mut params = SecretKeyParamsBuilder::default();
+    params
+        .key_type(KeyType::Ed25519Legacy)
+        .can_certify(true)
+        .can_sign(true)
+        .primary_user_id("Cleartext Fixture <cleartext@example.invalid>".into())
+        .preferred_symmetric_algorithms(smallvec![SymmetricKeyAlgorithm::AES256])
+        .preferred_hash_algorithms(smallvec![PgpHashAlgorithm::Sha256])
+        .preferred_compression_algorithms(smallvec![]);
+    let secret = params.build().unwrap().generate(thread_rng()).unwrap();
+    let public = secret.to_public_key();
+    let message = CleartextSignedMessage::sign(
+        thread_rng(),
+        std::str::from_utf8(MANIFEST).unwrap(),
+        &secret.primary_key,
+        &Password::empty(),
+    )
+    .unwrap();
+    (
+        message.to_armored_string(None.into()).unwrap(),
+        public.to_armored_string(None.into()).unwrap(),
+    )
 }

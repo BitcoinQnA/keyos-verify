@@ -15,7 +15,7 @@ signing-identity = "qna-dev"
 [publisher]
 name = "QnA"
 contact-email = "qna@foundation.xyz"
-support-url = "https://linear.app/foundation-devices/issue/SUP-1273"
+support-url = "https://github.com/BitcoinQnA/keyos-verify/issues"
 
 [permissions]
 template = ["gui-app"]

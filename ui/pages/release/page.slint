@@ -31,12 +31,12 @@ export component ReleasePagePage inherits PageBody {
     NavHeader { title: "Verify Release"; back => { Navigate.backward(); } }
 
     // TODO: localize
-    Subtext { text: "Verify the signed manifest first, then the release checksum."; }
+    Subtext { text: "Use the signed files supplied by the publisher. Checksums and signature may be separate or combined."; }
 
     // TODO: localize
     PickRow { label: "Release"; value: VerifyState.release-artifact; clicked => { Actions.select-release-artifact(); } }
     // TODO: localize
-    PickRow { label: "Manifest"; value: VerifyState.release-manifest; clicked => { Actions.select-release-manifest(); } }
+    PickRow { label: "Checksums"; value: VerifyState.release-manifest; clicked => { Actions.select-release-manifest(); } }
     // TODO: localize
     PickRow { label: "Signature"; value: VerifyState.release-signature; clicked => { Actions.select-release-signature(); } }
     // TODO: localize

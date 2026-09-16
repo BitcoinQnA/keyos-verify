@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    io::Read,
+    io::{self, Read},
     rc::Rc,
     sync::{
         atomic::{AtomicBool, AtomicU32, Ordering},
@@ -21,8 +21,9 @@ use slint_keyos_platform::{
 use verify_core::trust::TrustStore;
 use verify_core::{
     digest_matches, encode_hex, find_manifest_entry, parse_expected_digest, parse_manifest,
-    verify_detached_signature, HashAlgorithm, SignatureIdentity, MAX_MANIFEST_BYTES,
-    MAX_PUBLIC_KEY_BYTES, MAX_SIGNATURE_BYTES,
+    verify_cleartext_signature, verify_detached_signature, verify_detached_signature_reader,
+    HashAlgorithm, SignatureIdentity, MAX_MANIFEST_BYTES, MAX_PUBLIC_KEY_BYTES,
+    MAX_SIGNATURE_BYTES,
 };
 
 use crate::{gui_permissions::GuiPermissions, Actions, AppWindow, SavedPublisher, VerifyState};
@@ -43,6 +44,35 @@ struct SelectedFile {
 struct PendingTrust {
     identity: SignatureIdentity,
     key_bytes: Vec<u8>,
+    verification: ReleaseVerification,
+}
+
+#[derive(Clone, Copy)]
+enum ReleaseVerification {
+    SignedChecksums,
+    DirectSignature,
+}
+
+impl ReleaseVerification {
+    fn trusted_summary(self) -> &'static str {
+        match self {
+            // TODO: localize
+            Self::SignedChecksums => {
+                "The signed checksum matches a publisher key you have trusted."
+            }
+            // TODO: localize
+            Self::DirectSignature => "The file signature matches a publisher key you have trusted.",
+        }
+    }
+
+    fn untrusted_title(self) -> &'static str {
+        match self {
+            // TODO: localize
+            Self::SignedChecksums => "Signature and Hash Match",
+            // TODO: localize
+            Self::DirectSignature => "File Signature Valid",
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -75,6 +105,37 @@ struct State {
 struct Job {
     cancelled: Arc<AtomicBool>,
     kib_processed: Arc<AtomicU32>,
+}
+
+struct JobReader<R> {
+    inner: R,
+    job: Job,
+    processed: u64,
+}
+
+impl<R> JobReader<R> {
+    fn new(inner: R, job: Job) -> Self {
+        Self {
+            inner,
+            job,
+            processed: 0,
+        }
+    }
+}
+
+impl<R: Read> Read for JobReader<R> {
+    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        if self.job.cancelled.load(Ordering::Relaxed) {
+            return Err(io::Error::other("verification cancelled"));
+        }
+        let count = self.inner.read(buffer)?;
+        self.processed = self.processed.saturating_add(count as u64);
+        self.job.kib_processed.store(
+            (self.processed / 1024).min(u64::from(u32::MAX)) as u32,
+            Ordering::Relaxed,
+        );
+        Ok(count)
+    }
 }
 
 pub fn init(ui: &AppWindow) {
@@ -354,41 +415,99 @@ pub fn init(ui: &AppWindow) {
             clear_error(&ui);
             let selected = {
                 let current = state.borrow();
-                current.release_artifact.clone().zip(current.release_manifest.clone())
-                    .zip(current.release_signature.clone()).zip(current.release_key.clone())
+                (
+                    current.release_artifact.clone(),
+                    current.release_manifest.clone(),
+                    current.release_signature.clone(),
+                    current.release_key.clone(),
+                )
             };
-            let Some((((artifact, manifest), signature), key)) = selected else {
+            let (Some(artifact), manifest, signature, Some(key)) = selected else {
                 // TODO: localize
-                return fail(&ui, "Choose the release, manifest, signature, and publisher key first.");
+                return fail(&ui, "Choose the release and publisher key first.");
             };
+            if manifest.is_none() && signature.is_none() {
+                // TODO: localize
+                return fail(&ui, "Add a signed checksum file or a signature for the release.");
+            }
             let name = display_name(artifact.name());
             let (serial, job) = begin_job(&ui, &state);
             let weak = ui.as_weak();
             let state = state.clone();
             spawn_local(async move {
             let result = spawn_worker(async move {
-                let manifest_bytes = read_bounded(&manifest, MAX_MANIFEST_BYTES)?;
-                let signature_bytes = read_bounded(&signature, MAX_SIGNATURE_BYTES)?;
                 let key_bytes = read_bounded(&key, MAX_PUBLIC_KEY_BYTES)?;
-                let identity = verify_detached_signature(&manifest_bytes, &signature_bytes, &key_bytes)?;
-                let text = std::str::from_utf8(&manifest_bytes)
-                    // TODO: localize
-                    .map_err(|_| "The checksum manifest is not UTF-8 text.".to_string())?;
-                let entries = parse_manifest(text)?;
-                let entry = find_manifest_entry(&entries, artifact.name())?;
-                let (actual, _) = hash_file(&artifact, entry.algorithm, &job)?;
-                if !digest_matches(&entry.digest, &actual) {
-                    // TODO: localize
-                    return Err("The signature is valid, but the release checksum does not match. Do not use this download.".to_string());
-                }
-                Ok((identity, key_bytes))
+                let (identity, verification) = match (manifest, signature) {
+                    (Some(manifest), signature) => {
+                        let manifest_bytes = read_bounded(&manifest, MAX_MANIFEST_BYTES)?;
+                        let (identity, manifest_text) = if let Some(signature) = signature {
+                            let signature_bytes = read_bounded(&signature, MAX_SIGNATURE_BYTES)?;
+                            let identity = verify_detached_signature(
+                                &manifest_bytes,
+                                &signature_bytes,
+                                &key_bytes,
+                            )?;
+                            let text = std::str::from_utf8(&manifest_bytes)
+                                // TODO: localize
+                                .map_err(|_| "The checksum file is not UTF-8 text.".to_string())?
+                                .to_owned();
+                            (identity, text)
+                        } else {
+                            verify_cleartext_signature(&manifest_bytes, &key_bytes)?
+                        };
+                        let entries = parse_manifest(&manifest_text)?;
+                        let entry = find_manifest_entry(&entries, artifact.name())?;
+                        let (actual, _) = hash_file(&artifact, entry.algorithm, &job)?;
+                        if !digest_matches(&entry.digest, &actual) {
+                            // TODO: localize
+                            return Err("The signature is valid, but the release checksum does not match. Do not use this download.".to_string());
+                        }
+                        (identity, ReleaseVerification::SignedChecksums)
+                    }
+                    (None, Some(signature)) => {
+                        const MAX_DIRECT_SIGNATURE_ATTEMPTS: usize = 8;
+
+                        let signature_bytes = read_bounded(&signature, MAX_SIGNATURE_BYTES)?;
+                        let mut attempts = 0;
+                        let identity = verify_detached_signature_reader(
+                            &signature_bytes,
+                            &key_bytes,
+                            || {
+                                attempts += 1;
+                                if attempts > MAX_DIRECT_SIGNATURE_ATTEMPTS {
+                                    // TODO: localize
+                                    return Err("Too many candidate signatures for this release file.".to_string());
+                                }
+                                let file = FileSystem::default()
+                                    .open_file(
+                                        &artifact.path,
+                                        artifact.location,
+                                        fs::OpenFlags::READ_ONLY,
+                                    )
+                                    // TODO: localize
+                                    .map_err(|error| {
+                                        format!("Could not open {}: {error}", artifact.name())
+                                    })?;
+                                Ok(JobReader::new(file, job.clone()))
+                            },
+                        );
+                        if job.cancelled.load(Ordering::Relaxed) {
+                            // TODO: localize
+                            return Err("Verification cancelled.".to_string());
+                        }
+                        let identity = identity?;
+                        (identity, ReleaseVerification::DirectSignature)
+                    }
+                    (None, None) => unreachable!(),
+                };
+                Ok((identity, key_bytes, verification))
             }).await;
             let Some(ui) = weak.upgrade() else { return };
             if !finish_job(&ui, &state, serial) { return; }
             let mut current = state.borrow_mut();
 
             match result {
-                Ok((identity, key_bytes)) => {
+                Ok((identity, key_bytes, verification)) => {
                     let trusted = current.trusted.contains(&identity.fingerprint);
                     let fingerprint = grouped_fingerprint(&identity.fingerprint);
                     let publisher = identity.user_id.as_deref().map(display_name)
@@ -411,7 +530,7 @@ pub fn init(ui: &AppWindow) {
                             }
                         }
                         // TODO: localize
-                        set_result(&ui, 0, "Release Verified", "The signature and checksum match a publisher key you have trusted.",
+                        set_result(&ui, 0, "Release Verified", verification.trusted_summary(),
                             &format!("{name}\n\n{publisher}"), &fingerprint, false);
                         if let Some(error) = details_error {
                             // TODO: localize
@@ -420,9 +539,9 @@ pub fn init(ui: &AppWindow) {
                         }
                     } else {
                         // TODO: localize
-                        set_result(&ui, 1, "Signature and Hash Match", "Check this fingerprint using a separate trusted source before trusting the publisher.",
+                        set_result(&ui, 1, verification.untrusted_title(), "Check this fingerprint using a separate trusted source before trusting the publisher.",
                             &format!("{name}\n\n{publisher}"), &fingerprint, true);
-                        current.pending_trust = Some(PendingTrust { identity, key_bytes });
+                        current.pending_trust = Some(PendingTrust { identity, key_bytes, verification });
                     }
                 }
                 Err(error) => {
@@ -450,7 +569,7 @@ pub fn init(ui: &AppWindow) {
             }
             if let Err(error) = save_trusted_key(&pending.identity.fingerprint, &pending.key_bytes) {
                 // TODO: localize
-                set_result(&ui, 1, "Key Not Saved", "The signature and checksum match, but the public key could not be saved for reuse.", &short_error(&error), "", false);
+                set_result(&ui, 1, "Key Not Saved", "The release verification passed, but the public key could not be saved for reuse.", &short_error(&error), "", false);
                 return;
             }
             trusted.remember_key(&pending.identity.fingerprint);
@@ -461,7 +580,7 @@ pub fn init(ui: &AppWindow) {
                     &ui,
                     1,
                     "Key Not Saved",
-                    "The signature and checksum match, but the key could not be saved as trusted.",
+                    "The release verification passed, but the key could not be saved as trusted.",
                     &short_error(&error.to_string()),
                     "",
                     false,
@@ -476,9 +595,16 @@ pub fn init(ui: &AppWindow) {
             // TODO: localize
             view.set_result_title("Release Verified".into());
             // TODO: localize
-            view.set_result_summary(
-                "The signature and checksum match. You have trusted this publisher key.".into(),
-            );
+            view.set_result_summary(match pending.verification {
+                // TODO: localize
+                ReleaseVerification::SignedChecksums => {
+                    "The signed checksum matches. You have trusted this publisher key.".into()
+                }
+                // TODO: localize
+                ReleaseVerification::DirectSignature => {
+                    "The file signature is valid. You have trusted this publisher key.".into()
+                }
+            });
             view.set_can_trust(false);
             view.set_can_compare(false);
         }
@@ -572,9 +698,9 @@ pub fn init(ui: &AppWindow) {
             // TODO: localize
             view.set_release_artifact("No release selected".into());
             // TODO: localize
-            view.set_release_manifest("No manifest selected".into());
+            view.set_release_manifest("Clear-signed or separate".into());
             // TODO: localize
-            view.set_release_signature("No signature selected".into());
+            view.set_release_signature("Detached, if separate".into());
             // TODO: localize
             view.set_release_key("No public key selected".into());
             view.set_can_trust(false);

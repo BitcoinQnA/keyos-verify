@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Foundation Devices, Inc. <hello@foundation.xyz>
 // SPDX-License-Identifier: MIT
 
-import { Theme, UISize, Images } from "@ui/theme.slint";
+import { Theme, UISize } from "@ui/theme.slint";
 
 export component PageBody inherits Rectangle {
     background: Theme.palette-background;
@@ -39,7 +39,7 @@ export component Subtext inherits Text {
 export component NavHeader inherits Rectangle {
     in property <string> title;
     callback back();
-    property <image> back-icon: Images.icon("chevron-left", 28px);
+    property <image> back-icon: @image-url("assets/chevron-left.png");
     height: 44px;
 
     HorizontalLayout {
